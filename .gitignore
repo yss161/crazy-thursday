@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.wrangler/
+.preview/
+_probe/
+.local/
+.dev.vars
+*.log
+.DS_Store
+Thumbs.db

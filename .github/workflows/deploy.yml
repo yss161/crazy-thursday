@@ -1,0 +1,29 @@
+name: Deploy to Cloudflare Workers
+
+# 可选方案：用 GitHub Actions 部署。
+# 启用前提：在仓库 Settings → Secrets and variables → Actions 里
+#   1. 添加 Secret  CLOUDFLARE_API_TOKEN
+#   2. 添加 Variable ENABLE_CF_DEPLOY = true
+# 若你使用 Cloudflare Dashboard 的「Workers Builds」自动部署，本文件可以删掉。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ vars.ENABLE_CF_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci || npm install
+      - run: npm test
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy

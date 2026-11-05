@@ -1,0 +1,35 @@
+{
+  "name": "疯狂星期四文案生成器",
+  "short_name": "疯狂星期四",
+  "description": "随机给你一条肯德基疯狂星期四文案，还能存成图片发给群友。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fdf6ec",
+  "theme_color": "#c8102e",
+  "lang": "zh-CN",
+  "categories": [
+    "entertainment",
+    "lifestyle"
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

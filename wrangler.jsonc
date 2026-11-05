@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crazy-thursday",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+
+  // quotes.txt 以「纯文本模块」方式打进 Worker：改文件 -> 重新部署即生效
+  "rules": [{ "type": "Text", "globs": ["**/*.txt"], "fallthrough": true }],
+
+  // public/ 作为静态资源；/api/* 先交给 Worker
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // 每周四 09:00 北京时间（= 01:00 UTC）触发，若配置了 WEBHOOK_URL 就推一条文案
+  "triggers": { "crons": ["0 1 * * 4"] },
+
+  // 可选：开启「点赞/热门排行」需要 KV。在控制台创建 KV 命名空间后取消注释并填入 id。
+  // "kv_namespaces": [{ "binding": "QUOTES_KV", "id": "<你的 KV namespace id>" }],
+
+  "observability": { "enabled": true }
+}

@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>疯狂星期四文案生成器 · V我50</title>
+<meta name="description" content="点开就有惊喜：随机给你一条肯德基疯狂星期四文案。免费 API，每次调用随机返回一条，还支持每日一条、搜索和文案库浏览。">
+<meta name="keywords" content="疯狂星期四,肯德基,V我50,文案,星期四文案,API">
+<meta name="theme-color" content="#c8102e">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="疯狂星期四">
+<meta property="og:title" content="疯狂星期四文案生成器">
+<meta property="og:description" content="V我50，我给你一条能要到 50 块的文案。">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/icons/icon-192.png">
+<style>
+  :root {
+    --red: #c8102e; --red-dark: #9c0b23; --gold: #f5a623;
+    --cream: #fdf6ec; --ink: #241a16; --muted: #7b6c64;
+    --card: #fffdf9; --border: rgba(36,26,22,.1);
+    --shadow: 0 24px 60px -28px rgba(120,20,30,.45);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --cream: #16110f; --ink: #f4ece4; --muted: #a79890; --card: #1f1917; --border: rgba(255,255,255,.09); --shadow: 0 24px 60px -30px rgba(0,0,0,.8); }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, rgba(200,16,46,.18), transparent 60%), var(--cream);
+    color: var(--ink); display: flex; flex-direction: column; min-height: 100vh;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  /* ---------- header ---------- */
+  header { padding: 26px 20px 0; text-align: center; }
+  .brand { font-size: 13px; letter-spacing: .22em; color: var(--red); font-weight: 800; text-transform: uppercase; }
+  h1 { font-size: clamp(21px, 4.4vw, 32px); margin: 8px 0 6px; letter-spacing: -.02em; }
+  .sub { color: var(--muted); font-size: 13.5px; margin: 0; }
+  .today-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 12.5px; color: var(--red); background: rgba(200,16,46,.08); border: 1px solid rgba(200,16,46,.2); padding: 5px 12px; border-radius: 999px; }
+  /* ---------- tabs ---------- */
+  .tabs { display: flex; gap: 6px; justify-content: center; margin: 18px 0 0; padding: 0 16px; }
+  .tab { font: inherit; font-size: 14.5px; border: 1px solid var(--border); background: transparent; color: var(--muted); padding: 9px 18px; border-radius: 999px; cursor: pointer; transition: .18s; }
+  .tab.active { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
+  main { flex: 1; display: flex; justify-content: center; padding: 20px 18px 8px; }
+  .view { width: min(780px, 100%); }
+  .hidden { display: none !important; }
+  /* ---------- card ---------- */
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 26px;
+    box-shadow: var(--shadow); padding: clamp(22px, 3.6vw, 40px); position: relative; overflow: hidden;
+  }
+  .card::before { content: ""; position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, var(--red), var(--gold) 55%, var(--red)); }
+  .quote-mark { font-size: 44px; line-height: 1; color: var(--red); opacity: .22; font-family: Georgia, serif; }
+  blockquote { margin: 4px 0 0; font-size: clamp(16.5px, 2.3vw, 21px); line-height: 1.85; min-height: 3.4em; word-break: break-word; white-space: pre-wrap; }
+  blockquote.loading { color: var(--muted); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: .45 } 50% { opacity: 1 } }
+  blockquote.pop { animation: pop .45s cubic-bezier(.2,.8,.25,1); }
+  @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.99) } to { opacity: 1; transform: none } }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .tag { font: inherit; font-size: 12px; color: var(--red); border: 1px solid rgba(200,16,46,.35); border-radius: 999px; padding: 3px 10px; cursor: pointer; background: transparent; }
+  .tag:hover { background: rgba(200,16,46,.08); }
+  .actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+  button { font: inherit; font-size: 14.5px; border-radius: 13px; padding: 11px 16px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--ink); transition: .16s; }
+  button:hover { transform: translateY(-1px); }
+  button:active { transform: scale(.985); }
+  button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+  button.primary { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; box-shadow: 0 12px 24px -16px var(--red); }
+  button.primary:hover { background: var(--red-dark); }
+  button.ghost:hover { background: rgba(200,16,46,.07); border-color: rgba(200,16,46,.35); }
+  .meta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 12.5px; color: var(--muted); }
+  .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .switch input { accent-color: var(--red); width: 15px; height: 15px; }
+  .hint { font-size: 12.5px; color: var(--muted); margin-top: 12px; text-align: right; }
+  /* ---------- library ---------- */
+  .lib-head { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  input[type=search] {
+    flex: 1 1 220px; font: inherit; font-size: 14.5px; padding: 12px 15px; border-radius: 13px;
+    border: 1px solid var(--border); background: var(--card); color: var(--ink); outline: none;
+  }
+  input[type=search]:focus { border-color: rgba(200,16,46,.5); box-shadow: 0 0 0 3px rgba(200,16,46,.1); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chip { font: inherit; font-size: 12.5px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; }
+  .chip.on { background: rgba(200,16,46,.1); border-color: rgba(200,16,46,.4); color: var(--red); font-weight: 600; }
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .item { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; cursor: pointer; transition: .16s; display: flex; gap: 12px; align-items: flex-start; }
+  .item:hover { border-color: rgba(200,16,46,.35); transform: translateY(-1px); }
+  .item .no { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 34px; padding-top: 2px; }
+  .item .tx { font-size: 14.5px; line-height: 1.7; flex: 1; word-break: break-word; }
+  .item .tx .tg { color: var(--red); font-size: 12px; opacity: .8; margin-left: 4px; }
+  .lib-foot { text-align: center; margin: 16px 0 0; font-size: 13px; color: var(--muted); }
+  /* ---------- modal ---------- */
+  .modal { position: fixed; inset: 0; background: rgba(15,10,8,.55); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 50; }
+  .modal .box { background: var(--card); border-radius: 20px; padding: 18px; max-width: min(520px, 100%); max-height: 92vh; overflow: auto; box-shadow: var(--shadow); }
+  .modal img { width: 100%; border-radius: 14px; display: block; }
+  .modal .row { display: flex; gap: 9px; margin-top: 14px; }
+  .modal .row button { flex: 1; }
+  /* ---------- toast / confetti ---------- */
+  .toast { position: fixed; left: 50%; bottom: 30px; transform: translate(-50%, 16px); background: var(--ink); color: var(--cream); padding: 11px 20px; border-radius: 999px; font-size: 14px; opacity: 0; pointer-events: none; transition: .25s; z-index: 80; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: .96; transform: translate(-50%, 0); }
+  .confetti { position: fixed; top: -40px; font-size: 26px; pointer-events: none; z-index: 60; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(420deg); opacity: .2; } }
+  footer { padding: 18px 20px 28px; text-align: center; font-size: 12.5px; color: var(--muted); line-height: 1.9; }
+  footer code { background: rgba(200,16,46,.08); color: var(--red); padding: 2px 7px; border-radius: 6px; font-size: 12px; }
+  footer a { color: var(--red); text-decoration: none; }
+  @media (max-width: 560px) { .actions button { flex: 1 1 auto; } .hint { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Crazy Thursday</div>
+  <h1 id="title">🍗 疯狂星期四文案生成器</h1>
+  <p class="sub">每次打开都是新的理由，让别人 V 你 50。</p>
+  <div class="today-badge" id="badge">📅 …</div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-view="draw">🎲 抽一条</button>
+  <button class="tab" data-view="lib">📚 文案库</button>
+</div>
+
+<main>
+  <!-- 抽一条 -->
+  <section class="view" id="view-draw">
+    <div class="card">
+      <div class="quote-mark">“</div>
+      <blockquote id="quote" class="loading">正在召唤一只炸鸡…</blockquote>
+      <div class="tags" id="tags"></div>
+      <div class="actions">
+        <button class="primary" id="next">🔄 再来一条</button>
+        <button class="ghost" id="copy">📋 复制</button>
+        <button class="ghost" id="poster">🖼 存成图片</button>
+        <button class="ghost" id="share">🔗 分享</button>
+        <button class="ghost" id="like" disabled>🍗 笑到了 <span id="likes"></span></button>
+      </div>
+      <div class="meta">
+        <label class="switch"><input type="checkbox" id="daily"> 今日固定那一条</label>
+        <span id="counter">—</span>
+      </div>
+      <div class="hint">空格 = 换一条　·　C = 复制　·　L = 文案库</div>
+    </div>
+  </section>
+
+  <!-- 文案库 -->
+  <section class="view hidden" id="view-lib">
+    <div class="card">
+      <div class="lib-head">
+        <input type="search" id="q" placeholder="搜索关键词，例如：炸鸡 / 星期四 / 工资">
+        <button class="ghost" id="lucky">🎲 随机</button>
+        <button class="ghost" id="reshuffle">🔀 洗牌</button>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="list" id="list"></div>
+      <div class="lib-foot" id="libfoot">—</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div>免费 API：<code>GET /api/random</code> · <code>/api/daily</code> · <code>/api/all</code> · <a href="/api/openapi.json" target="_blank" rel="noopener">OpenAPI</a></div>
+  <div>文案库 <span id="total">—</span> 条 · 改仓库里的 <code>quotes.txt</code> 即可，推送后自动更新</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = (p, q) => fetch(p + (q ? "?" + new URLSearchParams(q) : "")).then((r) => r.json());
+
+const state = { current: null, tag: "", q: "", pool: [], shown: 60, hasKV: false, isThursday: false };
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove("show"), 1900);
+}
+
+/* ---------------- 抽一条 ---------------- */
+function render(q) {
+  state.current = q;
+  const el = $("quote");
+  el.classList.remove("loading");
+  el.textContent = q.text;
+  el.classList.remove("pop");
+  void el.offsetWidth;
+  el.classList.add("pop");
+  $("tags").innerHTML = "";
+  for (const tag of q.tags || []) {
+    const b = document.createElement("button");
+    b.className = "tag";
+    b.textContent = "#" + tag;
+    b.onclick = () => { state.tag = tag; draw({ tag }); };
+    $("tags").appendChild(b);
+  }
+  const total = q.total ?? "—";
+  $("counter").textContent = "#" + q.id + (q.date ? " · " + q.date : "") + (total !== "—" ? " / " + total : "");
+  $("total").textContent = total;
+  $("likes").textContent = q.likes || "";
+}
+
+async function draw(opts = {}) {
+  const daily = opts.endpoint ? opts.endpoint === "daily" : $("daily").checked;
+  const el = $("quote");
+  el.classList.add("loading");
+  el.textContent = "正在召唤一只炸鸡…";
+  try {
+    let q;
+    if (opts.id) {
+      q = await api("/api/quote", { id: opts.id });
+      history.replaceState(null, "", "?id=" + opts.id);
+    } else if (daily) {
+      q = await api("/api/daily", opts.tag ? { tag: opts.tag } : {});
+      history.replaceState(null, "", location.pathname);
+    } else {
+      const params = { _: Date.now() };
+      if (opts.tag || state.tag) params.tag = opts.tag || state.tag;
+      q = await api("/api/random", params);
+      history.replaceState(null, "", location.pathname);
+    }
+    if (!q.ok) throw new Error(q.error || "请求失败");
+    render(q);
+  } catch (err) {
+    el.classList.remove("loading");
+    el.textContent = "召唤失败：" + err.message + "（再点一次试试）";
+  }
+}
+
+/* ---------------- 文案库 ---------------- */
+function renderChips(tags) {
+  const chips = $("chips");
+  chips.innerHTML = "";
+  const mk = (label, value) => {
+    const b = document.createElement("button");
+    b.className = "chip" + (state.tag === value ? " on" : "");
+    b.textContent = label;
+    b.onclick = () => { state.tag = state.tag === value ? "" : value; loadLib(); };
+    chips.appendChild(b);
+  };
+  mk("全部", "");
+  Object.entries(tags || {}).sort((a, b) => b[1] - a[1]).forEach(([t, n]) => mk("#" + t + " " + n, t));
+}
+
+function renderList(list, total) {
+  $("list").innerHTML = "";
+  if (!list.length) {
+    $("list").innerHTML = '<div class="item"><div class="tx">没找到，换个关键词试试 🍗</div></div>';
+    $("libfoot").textContent = "共 0 条";
+    return;
+  }
+  for (const q of list) {
+    const d = document.createElement("div");
+    d.className = "item";
+    d.innerHTML = '<div class="no">#' + q.id + '</div><div class="tx"></div>';
+    const tx = d.querySelector(".tx");
+    tx.textContent = q.text;
+    for (const t of q.tags || []) {
+      const s = document.createElement("span");
+      s.className = "tg";
+      s.textContent = " #" + t;
+      tx.appendChild(s);
+    }
+    d.onclick = () => { switchView("draw"); draw({ id: q.id }); };
+    $("list").appendChild(d);
+  }
+  $("libfoot").textContent = "显示 " + list.length + " / " + total + " 条" + (state.shown < total ? "（滚动加载更多）" : "");
+}
+
+async function loadLib(reset = true) {
+  if (reset) state.shown = 60;
+  const [data, tags] = await Promise.all([
+    api("/api/all", { q: state.q, tag: state.tag, limit: 60, page: 1 }).catch(() => null),
+    api("/api/tags").catch(() => ({ tags: {} })),
+  ]);
+  renderChips(tags.tags || {});
+  if (!data || !data.ok) return;
+  state.pool = data.quotes;
+  renderList(state.pool.slice(0, state.shown), data.total);
+}
+
+async function moreLib() {
+  // 简单分页加载：每次再拿 60 条
+  const page = Math.floor(state.shown / 60) + 1;
+  const data = await api("/api/all", { q: state.q, tag: state.tag, limit: 60, page });
+  if (data.ok && data.quotes.length) {
+    state.pool = state.pool.concat(data.quotes);
+    state.shown += data.quotes.length;
+    renderList(state.pool, data.total);
+  }
+}
+
+/* ---------------- 分享图片 ---------------- */
+async function makePoster(q) {
+  const W = 1080, H = 1350, pad = 90;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+
+  const grd = g.createLinearGradient(0, 0, W, H);
+  grd.addColorStop(0, "#c8102e");
+  grd.addColorStop(1, "#7e0718");
+  g.fillStyle = grd;
+  g.fillRect(0, 0, W, H);
+
+  g.globalAlpha = 0.12;
+  g.fillStyle = "#fff";
+  g.beginPath(); g.arc(W * 0.9, H * 0.08, 320, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(W * 0.05, H * 0.95, 260, 0, Math.PI * 2); g.fill();
+  g.globalAlpha = 1;
+
+  // 白色卡片
+  const cardX = pad, cardY = 300, cardW = W - pad * 2, cardH = 760;
+  g.fillStyle = "rgba(255,253,249,.97)";
+  const r = 48;
+  g.beginPath();
+  g.moveTo(cardX + r, cardY);
+  g.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, r);
+  g.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, r);
+  g.arcTo(cardX, cardY + cardH, cardX, cardY, r);
+  g.arcTo(cardX, cardY, cardX + cardW, cardY, r);
+  g.closePath();
+  g.fill();
+
+  g.fillStyle = "#ffffff";
+  g.font = '700 44px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+  g.textAlign = "left";
+  g.fillText("🍗 疯狂星期四", pad, 170);
+  g.font = '400 30px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+  g.globalAlpha = 0.85;
+  g.fillText("Crazy Thursday", pad, 222);
+  g.globalAlpha = 1;
+
+  // 文案自动换行
+  const text = q.text;
+  const fontSize = text.length > 190 ? 34 : text.length > 110 ? 40 : 46;
+  g.font = '400 ' + fontSize + 'px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+  g.fillStyle = "#241a16";
+  const maxW = cardW - 120;
+  let line = "";
+  const lines = [];
+  for (const ch of text) {
+    if (g.measureText(line + ch).width > maxW) { lines.push(line); line = ch; }
+    else line += ch;
+    if (lines.length > 15) break;
+  }
+  if (line) lines.push(line);
+  const lh = fontSize * 1.72;
+  let y = cardY + 90 + (lines.length > 8 ? 0 : (8 - lines.length) * lh / 4);
+  for (const l of lines.slice(0, 15)) { g.fillText(l, cardX + 60, y); y += lh; }
+  if (text.length > 190 && lines.length > 15) g.fillText("…", cardX + 60, y);
+
+  // 底部
+  g.textAlign = "center";
+  g.fillStyle = "#ffffff";
+  g.font = '600 38px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+  g.fillText("V我50，就在今天", W / 2, 1170);
+  g.globalAlpha = 0.8;
+  g.font = '400 28px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+  g.fillText(location.host + " · #" + q.id, W / 2, 1230);
+  g.globalAlpha = 1;
+
+  return new Promise((resolve) => c.toBlob(resolve, "image/png"));
+}
+
+async function showPoster() {
+  if (!state.current) return;
+  const blob = await makePoster(state.current);
+  const url = URL.createObjectURL(blob);
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = '<div class="box"><img alt="文案分享图"><div class="row"><button class="primary" id="dl">💾 保存图片</button><button class="ghost" id="xl">关闭</button></div></div>';
+  modal.querySelector("img").src = url;
+  document.body.appendChild(modal);
+  const close = () => { URL.revokeObjectURL(url); modal.remove(); };
+  modal.querySelector("#xl").onclick = close;
+  modal.querySelector("#dl").onclick = () => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "疯狂星期四-" + state.current.id + ".png";
+    a.click();
+    toast("已保存，去发给群友吧");
+  };
+  modal.onclick = (e) => { if (e.target === modal) close(); };
+}
+
+/* ---------------- 交互 ---------------- */
+function switchView(name) {
+  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === name));
+  $("view-draw").classList.toggle("hidden", name !== "draw");
+  $("view-lib").classList.toggle("hidden", name !== "lib");
+  if (name === "lib") loadLib();
+}
+
+document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => switchView(t.dataset.view)));
+$("next").onclick = () => draw();
+$("lucky").onclick = async () => {
+  const q = await api("/api/random", { _: Date.now() });
+  if (q.ok) { switchView("draw"); render(q); }
+};
+$("reshuffle").onclick = () => { state.q = ""; $("q").value = ""; state.tag = ""; state.shown = 60; loadLib(); };
+$("copy").onclick = async () => {
+  if (!state.current) return;
+  try { await navigator.clipboard.writeText(state.current.text); toast("已复制，去 V 我 50 👌"); }
+  catch {
+    const ta = document.createElement("textarea");
+    ta.value = state.current.text; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); ta.remove();
+    toast("已复制，去 V 我 50 👌");
+  }
+};
+$("poster").onclick = showPoster;
+$("share").onclick = async () => {
+  if (!state.current) return;
+  const url = location.origin + "/?id=" + state.current.id;
+  if (navigator.share) { try { await navigator.share({ title: "疯狂星期四", text: state.current.text, url }); return; } catch {} }
+  try { await navigator.clipboard.writeText(url); toast("链接已复制"); } catch { toast(url); }
+};
+$("like").onclick = async () => {
+  if (!state.current) return;
+  const r = await fetch("/api/react?id=" + state.current.id, { method: "POST" });
+  const data = await r.json().catch(() => ({}));
+  if (data.ok) { $("likes").textContent = data.likes; toast("感谢捧场 🍗"); }
+  else toast(data.error || "暂时不可用");
+};
+$("daily").onchange = () => draw();
+let qTimer = null;
+$("q").addEventListener("input", (e) => {
+  clearTimeout(qTimer);
+  qTimer = setTimeout(() => { state.q = e.target.value.trim(); state.shown = 60; loadLib(); }, 260);
+});
+window.addEventListener("scroll", () => {
+  if ($("view-lib").classList.contains("hidden")) return;
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) moreLib();
+}, { passive: true });
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, textarea")) return;
+  if (e.code === "Space" || e.code === "ArrowRight") { e.preventDefault(); if (!$("view-draw").classList.contains("hidden")) draw(); }
+  if (e.key === "c" || e.key === "C") $("copy").click();
+  if (e.key === "l" || e.key === "L") switchView($("view-lib").classList.contains("hidden") ? "lib" : "draw");
+});
+
+/* ---------------- 星期四彩蛋 ---------------- */
+function confetti(n = 26) {
+  const emo = ["🍗", "🍟", "🥤", "💰", "🔥", "💎"];
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement("div");
+    s.className = "confetti";
+    s.textContent = emo[Math.floor(Math.random() * emo.length)];
+    s.style.left = Math.random() * 96 + "vw";
+    s.style.animationDuration = 2.4 + Math.random() * 2.2 + "s";
+    s.style.animationDelay = Math.random() * 1.4 + "s";
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 6500);
+  }
+}
+
+/* ---------------- 初始化 ---------------- */
+async function init() {
+  try {
+    const c = await api("/api/count");
+    state.isThursday = !!c.isThursday;
+    $("total").textContent = c.count;
+    $("badge").textContent = c.isThursday ? "🔥 今天就是星期四，冲！" : "⏳ 距离下个星期四还有 " + daysLeft() + " 天";
+    if (c.isThursday) { $("title").textContent = "🔥 疯狂星期四 · 就在今天"; confetti(34); }
+  } catch {}
+  try {
+    const s = await api("/api/stats");
+    state.hasKV = !!s.kv;
+    if (state.hasKV) $("like").disabled = false;
+  } catch {}
+  const id = new URLSearchParams(location.search).get("id");
+  if (id) draw({ id }); else draw({ endpoint: "random" });
+  if (navigator.serviceWorker && location.protocol === "https:") {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+}
+function daysLeft() {
+  const d = new Date().getDay(); // 0=周日
+  const left = (4 - d + 7) % 7;
+  return left === 0 ? 0 : left;
+}
+init();
+</script>
+</body>
+</html>
