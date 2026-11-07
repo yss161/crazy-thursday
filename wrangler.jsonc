@@ -17,8 +17,9 @@
   // 每周四 09:00 北京时间（= 01:00 UTC）触发，若配置了 WEBHOOK_URL 就推一条文案
   "triggers": { "crons": ["0 1 * * 4"] },
 
-  // 「笑到了」点赞与热门排行：KV 全局永久计数（未绑定时自动退化为 Cache API）
-  "kv_namespaces": [{ "binding": "QUOTES_KV", "id": "25e74eabfc65473fad1aee659e849dcf9" }],
+  // 「笑到了」点赞与热门排行：绑定 KV 后为全局永久计数；未绑定时自动退化为 Cache API
+  // 拿到准确 id 后取消下面这行注释即可（控制台 → Workers KV → 点 id 旁的复制图标）
+  // "kv_namespaces": [{ "binding": "QUOTES_KV", "id": "<KV namespace id>" }],
 
   "observability": { "enabled": true }
 }
