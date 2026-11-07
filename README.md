@@ -21,7 +21,7 @@
 | 🖼 一键生成分享图 | Canvas 实时画 1080×1350 竖版卡片，保存发群（含编号与站点域名） |
 | 📚 文案库 | 全部文案列表、关键词搜索、标签筛选、滚动加载、点任意一条直接抽到该条 |
 | 🍗 笑到了 / 🔥 热门 | 给梗点赞（同一浏览器同一条只算一次），绑定 KV 后出现「热门」榜 |
-| 🔐 后台管理 | `/admin` 密码登录，查看 / 修改 / 清零点赞数（密码存于 `ADMIN_PASSWORD`） |
+| 🔐 后台管理 | `/admin` 密码登录：**直接在网页上增 / 改 / 下线 / 恢复文案**（写回 GitHub），草稿箱，点赞数管理 |
 | 🔗 直达链接 | `/?id=42` 打开第 42 条，方便分享 |
 | 📋 复制 / 系统分享 | 一键复制文案或链接，手机上走系统分享面板 |
 | 🔥 星期四彩蛋 | 周四当天标题变「就在今天」，撒炸鸡/薯条彩带动画；其他日子显示倒计时 |
@@ -52,6 +52,13 @@
 | `POST /api/admin/likes-set` | 直接设定某条点赞数 `{id, likes}`（需登录） |
 | `POST /api/admin/likes-delete` | 清零某一条 `{id}`（需登录） |
 | `POST /api/admin/likes-reset` | 全部清零 `{confirm:true}`（需登录） |
+| `GET /api/admin/overview` | GitHub 连通性、文件/线上条数、是否已同步（需登录） |
+| `GET /api/admin/quotes` | 读 GitHub 原文的文案列表，支持 `?q=` `?filter=live\|hidden` `?page=` `?limit=`（需登录） |
+| `POST /api/admin/quotes-add` | 新增一条（直接 commit 到 quotes.txt） |
+| `POST /api/admin/quotes-edit` | 修改某条正文/标签 |
+| `POST /api/admin/quotes-hide` / `-restore` | 下线（可恢复）/ 恢复 |
+| `POST /api/admin/quotes-batch` | 批量下线/恢复，`{action:"hide"\|"restore", ids:[]}`，一次 commit |
+| `GET/POST /api/admin/drafts...` | 草稿箱：列表、保存、删除、发布（`drafts-publish`） |
 
 **自动化**
 
@@ -83,8 +90,13 @@ crazy-thursday/
 !这条暂时下线：文件里还在，但网站和 API 都不会出现
 ```
 
-规则：**一行一条** · `#` 注释 · `!` 临时下线 · 行尾 `#标签` · 空行忽略 · 自动去重。
-编号 `id` 按顺序生成，所以**新文案建议追加到末尾**（在中间插入会让后面所有 id 变化，之前分享过的 `/?id=` 链接会指向别的文案）。
+规则：**一行一条** · `#` 注释 · `!` 下线（可恢复） · 行尾 `#标签` · 空行忽略 · 自动去重。
+
+**关于编号**：`id` = 内容行的序号（**下线的行也占位**），所以：
+
+- 用 `!` 下线某条、之后再恢复，**不会让其它文案的编号发生变化**，已经分享出去的 `/?id=` 链接依然有效
+- 但在文件**中间插入或真正删掉一行**，后面所有 id 都会前移 —— 新增文案建议直接追加到末尾（后台的「新增」就是追加到末尾）
+
 
 ## 🚀 本地开发
 
@@ -121,28 +133,42 @@ npm test         # 29 项自测：解析规则 / 随机 / 每日 / 搜索 / 数�
 
 ### 🔐 管理后台 `/admin`
 
-用来管理点赞：查看排行、把某条改成任意数字、清零单条或全部清零。
+后台有三块功能：**文案管理**（增 / 改 / 下线 / 恢复，直接写回仓库）、**草稿箱**、**点赞管理**。
 
-**1. 设置密码（只需一次）**
+**1. 设置两个变量（只需一次）**
 
-后台密码不写在代码里，用环境变量（Secret）：
+Cloudflare 控制台 → Worker `crazy-thursday` → **Settings → Variables and Secrets**：
 
-- 控制台：Worker `crazy-thursday` → **Settings → Variables and Secrets** → **Add** → Type 选 **Secret**，Name 填 `ADMIN_PASSWORD`，Value 填你想用的密码 → 保存并重新部署
-- 或命令行：`npx wrangler secret put ADMIN_PASSWORD`
+| 名称 | 类型 | 值 | 作用 |
+| --- | --- | --- | --- |
+| `ADMIN_PASSWORD` | **Secret** | 你自己定的后台密码 | 登录 `/admin` |
+| `GITHUB_TOKEN` | **Secret** | fine-grained PAT | 后台改文案时提交到仓库 |
 
-**2. 打开 `https://你的域名/admin`**，输入密码即可。登录状态 12 小时有效，Cookie 为 `HttpOnly`（JS 读不到）。
+`GITHUB_TOKEN` 生成方式：GitHub → Settings → Developer settings → **Fine-grained tokens** → Generate new token：
 
-**3. 能做什么**
+- Repository access：**Only select repositories** → 只勾 `crazy-thursday`
+- Permissions → Repository permissions → **Contents: Read and write**（其余全部 No access）
+- 有效期自选（过期后后台会提示 token 失效，重新生成即可）
 
-| 操作 | 说明 |
+可选的普通变量（一般不用设）：`GITHUB_REPO`（默认 `yss161/crazy-thursday`）、`GITHUB_BRANCH`（默认 `main`）、`GITHUB_FILE`（默认 `quotes.txt`）。
+
+**2. 能做什么**
+
+| 标签页 | 功能 |
 | --- | --- |
-| 查看列表 | 只列出「有点赞」的文案，按赞数排序，显示累计点赞 / 条数 / 文案总数 |
-| 搜索 | 输入关键词按正文搜索；输入 `#42` 精确按编号找 |
-| 修改 | 改数字后点「保存」，立即写入 KV，前台马上生效 |
-| 清零 | 单条清零，或「全部清零」（会二次确认） |
-| 退出 | 清除会话 cookie |
+| 📝 文案管理 | 列出全部文案（读仓库原文，永远是最新的），搜索 / 按 `#编号` 精确查找 / 只看上线或下线；编辑正文与标签、下线（可恢复）、新增；勾选后批量下线 / 恢复（一次 commit） |
+| 📄 草稿箱 | 草稿只存 KV，不进仓库也不出现在网站上；确认后「发布」或「全部发布」一次性写进 `quotes.txt` |
+| 🍗 点赞管理 | 看累计/明细，改任意数字、单条清零、全部清零 |
 
-**安全说明**：密码错误返回 401 且登录接口每 IP 限 10 次/分钟；会话是 HMAC-SHA256 签名 + 12 小时过期，改密码即让所有旧会话失效；未设置 `ADMIN_PASSWORD` 时后台整体关闭（接口返回 503，前台功能不受影响）。
+顶部状态条会显示 **GitHub 文件 N 条（上线 X / 下线 Y）· 站点已上线 M 条**；两者不一致说明提交已生效、站点还在构建（约 1–2 分钟），构建完成后会自动提示「✅ 已上线」。
+
+**3. 安全说明**
+
+- 密码错误返回 401，登录接口每 IP 限 10 次/分钟
+- 会话是 `HMAC-SHA256(ADMIN_PASSWORD)` 签名的 cookie，12 小时过期；**改密码立即让所有旧会话失效**
+- 写操作走 GitHub Contents API 的 `sha` 乐观锁，你同时在网页上改文件会返回 409 并自动重试一次，不会互相覆盖
+- `GITHUB_TOKEN` 只有单个仓库的 Contents 写权限，泄露的影响面被限制在这一个仓库
+- 未设置 `ADMIN_PASSWORD` 时后台整体关闭（接口 503），前台功能不受影响
 
 ### 可选：每周四自动推送
 

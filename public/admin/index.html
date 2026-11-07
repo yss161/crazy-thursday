@@ -4,81 +4,69 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>后台 · 点赞管理 · 疯狂星期四</title>
+<title>后台 · 疯狂星期四</title>
 <link rel="icon" href="/icons/icon-192.png">
 <style>
-  :root {
-    --red: #c8102e; --red-dark: #9c0b23; --gold: #f5a623;
-    --cream: #fdf6ec; --ink: #241a16; --muted: #7b6c64;
-    --card: #fffdf9; --border: rgba(36,26,22,.1);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --cream: #16110f; --ink: #f4ece4; --muted: #a79890; --card: #1f1917; --border: rgba(255,255,255,.09); }
-  }
+  :root { --red:#c8102e; --red-dark:#9c0b23; --gold:#f5a623; --cream:#fdf6ec; --ink:#241a16; --muted:#7b6c64; --card:#fffdf9; --border:rgba(36,26,22,.1); --ok:#1a7f37; --warn:#b26a00; }
+  @media (prefers-color-scheme: dark) { :root { --cream:#16110f; --ink:#f4ece4; --muted:#a79890; --card:#1f1917; --border:rgba(255,255,255,.09); --ok:#4ac26b; --warn:#e0a020; } }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; min-height: 100vh; color: var(--ink); background: var(--cream);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  header {
-    display: flex; align-items: center; gap: 12px; padding: 16px 20px;
-    border-bottom: 1px solid var(--border); background: var(--card); position: sticky; top: 0; z-index: 10;
-  }
-  header h1 { font-size: 16px; margin: 0; flex: 1; font-weight: 650; }
-  header .badge { font-size: 12px; color: var(--muted); }
-  main { max-width: 980px; margin: 0 auto; padding: 20px; }
-  button {
-    font: inherit; font-size: 14px; border-radius: 10px; padding: 9px 14px; cursor: pointer;
-    border: 1px solid var(--border); background: transparent; color: var(--ink); transition: .16s;
-  }
-  button:hover { transform: translateY(-1px); }
-  button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-  button.primary { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
-  button.primary:hover { background: var(--red-dark); }
-  button.danger { color: var(--red); border-color: rgba(200,16,46,.35); }
-  button.danger:hover { background: rgba(200,16,46,.08); }
-  button.tiny { padding: 6px 10px; font-size: 13px; border-radius: 8px; }
-  input {
-    font: inherit; font-size: 14px; padding: 10px 12px; border-radius: 10px;
-    border: 1px solid var(--border); background: var(--card); color: var(--ink); outline: none;
-  }
-  input:focus { border-color: rgba(200,16,46,.5); box-shadow: 0 0 0 3px rgba(200,16,46,.1); }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 22px; }
-  .login { max-width: 380px; margin: 8vh auto; }
-  .login h2 { margin: 0 0 6px; font-size: 18px; }
-  .login p { color: var(--muted); font-size: 13px; margin: 0 0 18px; line-height: 1.7; }
-  .login input { width: 100%; margin-bottom: 12px; }
-  .login button { width: 100%; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
-  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
-  .stat .k { font-size: 12px; color: var(--muted); }
-  .stat .v { font-size: 22px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
-  .toolbar { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-bottom: 14px; }
-  .toolbar input[type=search] { flex: 1 1 220px; }
-  .rows { display: flex; flex-direction: column; gap: 8px; }
-  .row {
-    display: grid; grid-template-columns: 56px 1fr 92px auto; gap: 12px; align-items: center;
-    background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px;
-  }
-  .row .id { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .row .tx { font-size: 14px; line-height: 1.6; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .row .tx a { color: var(--ink); text-decoration: none; }
-  .row .tx a:hover { color: var(--red); }
-  .row input[type=number] { width: 84px; padding: 7px 9px; font-variant-numeric: tabular-nums; }
-  .row .ops { display: flex; gap: 7px; }
-  .empty { color: var(--muted); font-size: 14px; padding: 26px; text-align: center; }
-  .note { color: var(--muted); font-size: 12.5px; margin-top: 16px; line-height: 1.8; }
-  .toast {
-    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px); background: var(--ink);
-    color: var(--cream); padding: 10px 18px; border-radius: 999px; font-size: 13.5px; opacity: 0;
-    pointer-events: none; transition: .22s; z-index: 50; max-width: 88vw; text-align: center;
-  }
-  .toast.show { opacity: .96; transform: translate(-50%, 0); }
-  @media (max-width: 640px) {
-    .row { grid-template-columns: 44px 1fr; grid-template-areas: "id tx" "num ops"; row-gap: 8px; }
-    .row .id { grid-area: id; } .row .tx { grid-area: tx; }
-    .row input[type=number] { grid-area: num; width: 100%; } .row .ops { grid-area: ops; justify-content: flex-end; }
+  body { margin:0; min-height:100vh; color:var(--ink); background:var(--cream); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; }
+  header { display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--border); background:var(--card); position:sticky; top:0; z-index:20; }
+  header h1 { font-size:15.5px; margin:0; flex:1; font-weight:650; }
+  .pill { font-size:12px; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:3px 10px; }
+  main { max-width:1080px; margin:0 auto; padding:18px; }
+  button { font:inherit; font-size:13.5px; border-radius:10px; padding:8px 13px; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--ink); transition:.15s; }
+  button:hover { transform:translateY(-1px); }
+  button:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+  button.primary { background:var(--red); border-color:var(--red); color:#fff; font-weight:600; }
+  button.primary:hover { background:var(--red-dark); }
+  button.danger { color:var(--red); border-color:rgba(200,16,46,.35); }
+  button.danger:hover { background:rgba(200,16,46,.08); }
+  button.tiny { padding:5px 9px; font-size:12.5px; border-radius:8px; }
+  input, select, textarea { font:inherit; font-size:14px; padding:9px 11px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--ink); outline:none; }
+  input:focus, select:focus, textarea:focus { border-color:rgba(200,16,46,.5); box-shadow:0 0 0 3px rgba(200,16,46,.1); }
+  textarea { width:100%; min-height:130px; resize:vertical; line-height:1.7; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; }
+  .login { max-width:380px; margin:8vh auto; }
+  .login h2 { margin:0 0 6px; font-size:17px; }
+  .login p { color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.7; }
+  .login input { width:100%; margin-bottom:10px; }
+  .login button { width:100%; }
+  .banner { border-radius:12px; padding:11px 14px; font-size:13px; line-height:1.7; margin-bottom:14px; border:1px solid var(--border); }
+  .banner.warn { background:rgba(245,166,35,.1); border-color:rgba(245,166,35,.35); color:var(--warn); }
+  .banner.err { background:rgba(200,16,46,.08); border-color:rgba(200,16,46,.3); color:var(--red); }
+  .statusbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:12.5px; color:var(--muted); margin-bottom:12px; }
+  .statusbar b { color:var(--ink); font-weight:650; }
+  .dot { width:8px; height:8px; border-radius:50%; display:inline-block; background:var(--ok); }
+  .dot.warn { background:var(--warn); }
+  .tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .tab { border-radius:999px; padding:8px 15px; font-size:13.5px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; }
+  .tab.on { background:var(--red); border-color:var(--red); color:#fff; font-weight:600; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
+  .toolbar input[type=search] { flex:1 1 200px; }
+  .rows { display:flex; flex-direction:column; gap:7px; }
+  .row { display:grid; grid-template-columns:22px 52px 1fr auto; gap:10px; align-items:center; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; }
+  .row .cb { accent-color:var(--red); width:15px; height:15px; }
+  .row .id { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .row .tx { font-size:13.5px; line-height:1.6; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; cursor:pointer; }
+  .row .tx:hover { color:var(--red); }
+  .row .ops { display:flex; gap:6px; align-items:center; }
+  .row.hidden-row { opacity:.6; }
+  .badge { font-size:11px; padding:2px 7px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+  .badge.off { color:var(--red); border-color:rgba(200,16,46,.35); }
+  .badge.draft { color:var(--warn); border-color:rgba(245,166,35,.4); }
+  .empty { color:var(--muted); font-size:13.5px; padding:28px; text-align:center; }
+  .pager { display:flex; gap:8px; align-items:center; justify-content:center; margin-top:14px; font-size:13px; color:var(--muted); }
+  .modal { position:fixed; inset:0; background:rgba(15,10,8,.55); backdrop-filter:blur(5px); display:flex; align-items:center; justify-content:center; padding:16px; z-index:60; }
+  .modal .box { background:var(--card); border-radius:16px; padding:18px; width:min(560px,100%); max-height:92vh; overflow:auto; }
+  .modal h3 { margin:0 0 12px; font-size:16px; }
+  .modal label { display:block; font-size:12.5px; color:var(--muted); margin:12px 0 5px; }
+  .modal .row2 { display:flex; gap:8px; margin-top:16px; justify-content:flex-end; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translate(-50%,14px); background:var(--ink); color:var(--cream); padding:10px 18px; border-radius:999px; font-size:13.5px; opacity:0; pointer-events:none; transition:.22s; z-index:80; max-width:88vw; text-align:center; }
+  .toast.show { opacity:.96; transform:translate(-50%,0); }
+  @media (max-width:640px) {
+    .row { grid-template-columns:22px 46px 1fr; grid-template-areas:"cb id tx" "cb id ops"; row-gap:8px; }
+    .row .cb{grid-area:cb}.row .id{grid-area:id}.row .tx{grid-area:tx}.row .ops{grid-area:ops;justify-content:flex-start}
   }
 </style>
 </head>
@@ -86,35 +74,65 @@
 <header>
   <span>🍗</span>
   <h1>疯狂星期四 · 后台</h1>
-  <span class="badge" id="who">—</span>
+  <span class="pill" id="who">—</span>
   <button class="tiny" id="logout" style="display:none">退出</button>
 </header>
 
 <main>
-  <!-- 登录 -->
   <section id="loginView" class="card login" style="display:none">
     <h2>请输入管理密码</h2>
-    <p id="loginHint">密码来自 Worker 的环境变量 <code>ADMIN_PASSWORD</code>，输入后 12 小时内免登录。</p>
+    <p id="loginHint">密码来自环境变量 <code>ADMIN_PASSWORD</code>，登录后 12 小时内免输入。</p>
     <input type="password" id="pw" placeholder="管理密码" autocomplete="current-password">
     <button class="primary" id="loginBtn">登录</button>
   </section>
 
-  <!-- 后台主体 -->
   <section id="panel" style="display:none">
-    <div class="stats">
-      <div class="stat"><div class="k">累计点赞</div><div class="v" id="statTotal">—</div></div>
-      <div class="stat"><div class="k">被赞过的文案</div><div class="v" id="statCount">—</div></div>
-      <div class="stat"><div class="k">文案总数</div><div class="v" id="statQuotes">—</div></div>
+    <div id="banners"></div>
+    <div class="statusbar" id="statusbar"></div>
+    <div class="tabs">
+      <button class="tab on" data-tab="quotes">📝 文案管理</button>
+      <button class="tab" data-tab="drafts">📄 草稿箱 <span id="draftCount">0</span></button>
+      <button class="tab" data-tab="likes">🍗 点赞管理</button>
     </div>
-    <div class="toolbar">
-      <input type="search" id="q" placeholder="搜索文案 / 输入 #id 精确查找">
-      <button id="refresh">🔄 刷新</button>
-      <button class="danger" id="resetAll">🗑 全部清零</button>
+
+    <!-- 文案管理 -->
+    <div id="tab-quotes">
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="搜索文案，或输入 #编号 精确查找">
+        <select id="filter">
+          <option value="all">全部</option>
+          <option value="live">仅上线</option>
+          <option value="hidden">仅下线</option>
+        </select>
+        <button class="primary" id="addBtn">➕ 新增文案</button>
+        <button id="batchHide" disabled>批量下线</button>
+        <button id="batchRestore" disabled>批量恢复</button>
+        <button id="refreshQuotes">🔄 刷新</button>
+      </div>
+      <div class="rows" id="quoteRows"></div>
+      <div class="pager" id="pager"></div>
     </div>
-    <div class="rows" id="rows"></div>
-    <div class="note">
-      改完数字点「保存」立即生效（写进 Workers KV）。清零后这条会从榜单消失。<br>
-      页面上的「🍗 笑到了」每点一次 +1，同一浏览器同一条只算一次。
+
+    <!-- 草稿箱 -->
+    <div id="tab-drafts" style="display:none">
+      <div class="toolbar">
+        <button class="primary" id="addDraft">➕ 新建草稿</button>
+        <button id="publishAll">🚀 全部发布到 GitHub</button>
+        <button id="refreshDrafts">🔄 刷新</button>
+      </div>
+      <div class="rows" id="draftRows"></div>
+      <p class="empty" id="draftEmpty" style="display:none">草稿箱是空的。草稿只存在 KV，不会出现在网站上，确认后一键发布到仓库。</p>
+    </div>
+
+    <!-- 点赞管理 -->
+    <div id="tab-likes" style="display:none">
+      <div class="statusbar" id="likeStats"></div>
+      <div class="toolbar">
+        <input type="search" id="lq" placeholder="搜索文案，或输入 #编号">
+        <button id="refreshLikes">🔄 刷新</button>
+        <button class="danger" id="resetAll">🗑 全部清零</button>
+      </div>
+      <div class="rows" id="likeRows"></div>
     </div>
   </section>
 </main>
@@ -123,15 +141,16 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-let rows = [];
+const state = { page: 1, limit: 50, total: 0, rows: [], selected: new Set(), drafts: [], likes: [], pollTimer: null };
 
-function toast(msg) {
+function toast(msg, ms = 2200) {
   const t = $("toast");
   t.textContent = msg;
   t.classList.add("show");
   clearTimeout(t._t);
-  t._t = setTimeout(() => t.classList.remove("show"), 2000);
+  t._t = setTimeout(() => t.classList.remove("show"), ms);
 }
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 async function api(path, opts = {}) {
   const res = await fetch(path, { credentials: "same-origin", headers: { "content-type": "application/json" }, ...opts });
@@ -139,111 +158,346 @@ async function api(path, opts = {}) {
   try { data = await res.json(); } catch {}
   return { status: res.status, data };
 }
+const post = (p, body) => api(p, { method: "POST", body: JSON.stringify(body || {}) });
 
-function showLogin(msg) {
+/* ---------------- 登录 ---------------- */
+function showLogin(html) {
   $("loginView").style.display = "block";
   $("panel").style.display = "none";
   $("logout").style.display = "none";
   $("who").textContent = "未登录";
-  if (msg) $("loginHint").innerHTML = msg;
+  if (html) $("loginHint").innerHTML = html;
 }
 
 async function boot() {
   const { data } = await api("/api/admin/status");
   if (!data.enabled) {
-    showLogin("⚠️ 后台未启用：请在 Cloudflare 控制台给 Worker 添加环境变量（Secret）<code>ADMIN_PASSWORD</code>，然后刷新本页。");
+    showLogin("⚠️ 后台未启用：请在 Cloudflare 控制台给 Worker 添加环境变量（Secret）<code>ADMIN_PASSWORD</code>，保存后刷新本页。");
     $("loginBtn").disabled = true;
     return;
   }
-  if (data.authed) load();
-  else showLogin();
-}
-
-async function load() {
-  const { status, data } = await api("/api/admin/likes");
-  if (status === 401) return showLogin("会话已过期，请重新登录。");
-  if (!data.ok) { toast(data.error || "加载失败"); return; }
-  rows = data.rows;
-  $("loginView").style.display = "none";
-  $("panel").style.display = "block";
-  $("logout").style.display = "inline-block";
-  $("who").textContent = "已登录";
-  try {
-    const c = await api("/api/count");
-    $("statQuotes").textContent = c.data.count;
-  } catch {}
-  render();
-}
-
-function render() {
-  const q = $("q").value.trim().toLowerCase();
-  const list = rows.filter((r) => {
-    if (!q) return true;
-    if (q.startsWith("#")) return String(r.id) === q.slice(1);
-    return r.text.toLowerCase().includes(q);
-  });
-  $("statTotal").textContent = rows.reduce((s, r) => s + r.likes, 0);
-  $("statCount").textContent = rows.length;
-  const box = $("rows");
-  box.innerHTML = "";
-  if (!list.length) {
-    box.innerHTML = '<div class="empty">' + (rows.length ? "没有匹配的文案" : "还没有人点过赞 🍗") + "</div>";
-    return;
-  }
-  for (const r of list) {
-    const el = document.createElement("div");
-    el.className = "row";
-    el.innerHTML = '<div class="id">#' + r.id + '</div>' +
-      '<div class="tx"><a href="/?id=' + r.id + '" target="_blank" rel="noopener">' + esc(r.text) + "</a></div>" +
-      '<input type="number" min="0" max="1000000000" value="' + r.likes + '">' +
-      '<div class="ops"><button class="tiny primary">保存</button><button class="tiny danger">清零</button></div>';
-    const input = el.querySelector("input");
-    el.querySelector(".primary").onclick = () => save(r.id, Number(input.value), el);
-    el.querySelector(".danger").onclick = () => { input.value = 0; save(r.id, 0, el); };
-    box.appendChild(el);
-  }
-}
-
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-}
-
-async function save(id, likes, el) {
-  if (!Number.isFinite(likes) || likes < 0) return toast("请输入 0 以上的整数");
-  const btns = el.querySelectorAll("button");
-  btns.forEach((b) => (b.disabled = true));
-  const { data } = await api("/api/admin/likes-set", { method: "POST", body: JSON.stringify({ id, likes }) });
-  btns.forEach((b) => (b.disabled = false));
-  if (!data.ok) return toast(data.error || "保存失败");
-  const row = rows.find((r) => r.id === id);
-  if (row) row.likes = data.likes;
-  if (data.likes === 0) rows = rows.filter((r) => r.id !== id);
-  toast("#" + id + " 已设为 " + data.likes + " 赞");
-  render();
+  if (data.authed) enterPanel(); else showLogin();
 }
 
 $("loginBtn").onclick = async () => {
   const password = $("pw").value;
   if (!password) return toast("请输入密码");
   $("loginBtn").disabled = true;
-  const { status, data } = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password }) });
+  const { data } = await post("/api/admin/login", { password });
   $("loginBtn").disabled = false;
   if (!data.ok) return toast(data.error || "登录失败");
   $("pw").value = "";
-  toast("登录成功");
-  load();
+  enterPanel();
 };
 $("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") $("loginBtn").click(); });
-$("logout").onclick = async () => { await api("/api/admin/logout", { method: "POST" }); showLogin("已退出登录。"); };
-$("refresh").onclick = () => load();
-$("q").addEventListener("input", render);
-$("resetAll").onclick = async () => {
-  if (!confirm("确定要把所有文案的点赞数全部清零吗？这个操作不可撤销。")) return;
-  const { data } = await api("/api/admin/likes-reset", { method: "POST", body: JSON.stringify({ confirm: true }) });
+$("logout").onclick = async () => { await post("/api/admin/logout"); showLogin("已退出登录。"); };
+
+function enterPanel() {
+  $("loginView").style.display = "none";
+  $("panel").style.display = "block";
+  $("logout").style.display = "inline-block";
+  $("who").textContent = "已登录";
+  refreshOverview();
+  loadQuotes();
+}
+
+/* ---------------- 概览 & 状态栏 ---------------- */
+let overview = null;
+async function refreshOverview() {
+  const { data } = await api("/api/admin/overview");
+  overview = data;
+  const banners = [];
+  if (data.ok && !data.githubConfigured) {
+    banners.push('<div class="banner warn">尚未配置 <b>GITHUB_TOKEN</b>：现在只能管理点赞；文案的增删改需要 token。<br>Cloudflare → Worker → Settings → Variables and Secrets → 添加 Secret，名称 <code>GITHUB_TOKEN</code>，值填 fine-grained PAT（只勾本仓库，权限 Contents: Read and write）。</div>');
+  } else if (data.ok && !data.githubOk) {
+    banners.push('<div class="banner err">读取 GitHub 文件失败：' + esc(data.githubError || "未知错误") + "</div>");
+  }
+  if (data.ok && data.githubOk && !data.synced) {
+    banners.push('<div class="banner warn">文件已改，站点还在构建中：文件里上线 <b>' + data.fileLive + '</b> 条，线上是 <b>' + data.builtCount + '</b> 条。约 1~2 分钟后自动同步。</div>');
+  }
+  $("banners").innerHTML = banners.join("");
+  const sb = [];
+  if (data.ok) {
+    sb.push('<span class="dot ' + (data.synced ? "" : "warn") + '"></span>');
+    if (data.githubOk) {
+      sb.push('GitHub 文件 <b>' + data.fileText + '</b> 条（上线 ' + data.fileLive + ' / 下线 ' + data.fileHidden + '）');
+      sb.push('· 站点已上线 <b>' + data.builtCount + '</b> 条');
+      sb.push('· 草稿 <b>' + data.draftCount + '</b>');
+      sb.push('· <code>' + esc(data.repo) + '@' + esc(data.branch) + ' / ' + esc(data.file) + '</code>');
+    } else {
+      sb.push('GitHub 未就绪 · 站点已上线 <b>' + (data.builtCount || 0) + '</b> 条');
+    }
+  }
+  $("statusbar").innerHTML = sb.join(" ");
+  $("draftCount").textContent = data.ok && data.draftCount != null ? data.draftCount : "0";
+  if (data.ok && data.githubOk && !data.synced) schedulePolling();
+}
+
+function schedulePolling() {
+  if (state.pollTimer) return;
+  let n = 0;
+  state.pollTimer = setInterval(async () => {
+    n++;
+    const { data } = await api("/api/admin/overview");
+    if (data.ok && data.synced) {
+      clearInterval(state.pollTimer);
+      state.pollTimer = null;
+      toast("✅ 构建完成，已上线：" + data.builtCount + " 条");
+      refreshOverview(); loadQuotes();
+    } else if (n > 40) {
+      clearInterval(state.pollTimer);
+      state.pollTimer = null;
+    }
+  }, 5000);
+}
+
+/* ---------------- 文案管理 ---------------- */
+async function loadQuotes() {
+  const q = $("q").value.trim();
+  const filter = $("filter").value;
+  const { status, data } = await api("/api/admin/quotes?page=" + state.page + "&limit=" + state.limit + "&q=" + encodeURIComponent(q) + "&filter=" + filter);
+  if (status === 401) return showLogin("会话已过期，请重新登录。");
+  if (!data.ok) { $("quoteRows").innerHTML = '<div class="empty">' + esc(data.error || "加载失败") + "</div>"; $("pager").innerHTML = ""; return; }
+  state.rows = data.rows;
+  state.total = data.total;
+  renderQuotes();
+  renderPager();
+}
+
+function renderQuotes() {
+  const box = $("quoteRows");
+  box.innerHTML = "";
+  if (!state.rows.length) { box.innerHTML = '<div class="empty">没有匹配的文案</div>'; return; }
+  for (const r of state.rows) {
+    const el = document.createElement("div");
+    el.className = "row" + (r.hidden ? " hidden-row" : "");
+    el.innerHTML =
+      '<input type="checkbox" class="cb">' +
+      '<div class="id">#' + r.id + '</div>' +
+      '<div class="tx">' + esc(r.text) + (r.tags.length ? ' <span class="badge">' + r.tags.map((t) => "#" + esc(t)).join(" ") + "</span>" : "") + "</div>" +
+      '<div class="ops">' +
+        (r.hidden
+          ? '<span class="badge off">已下线</span><button class="tiny">编辑</button><button class="tiny primary">恢复</button>'
+          : '<button class="tiny">编辑</button><button class="tiny danger">下线</button>') +
+      "</div>";
+    const cb = el.querySelector(".cb");
+    cb.checked = state.selected.has(r.id);
+    cb.onchange = () => { cb.checked ? state.selected.add(r.id) : state.selected.delete(r.id); updateBatchButtons(); };
+    el.querySelector(".tx").onclick = () => editQuote(r);
+    const ops = el.querySelector(".ops");
+    const editBtn = ops.querySelector("button:not(.danger):not(.primary)");
+    if (editBtn) editBtn.onclick = () => editQuote(r);
+    const hideBtn = ops.querySelector(".danger");
+    if (hideBtn) hideBtn.onclick = () => hideQuote(r);
+    const restoreBtn = ops.querySelector(".primary");
+    if (r.hidden && restoreBtn) restoreBtn.onclick = () => restoreQuote(r);
+    box.appendChild(el);
+  }
+  updateBatchButtons();
+}
+
+function updateBatchButtons() {
+  $("batchHide").disabled = state.selected.size === 0;
+  $("batchRestore").disabled = state.selected.size === 0;
+}
+
+function renderPager() {
+  const pages = Math.max(1, Math.ceil(state.total / state.limit));
+  $("pager").innerHTML = "";
+  if (pages <= 1) { $("pager").textContent = "共 " + state.total + " 条"; return; }
+  const prev = document.createElement("button"); prev.className = "tiny"; prev.textContent = "‹ 上一页"; prev.disabled = state.page <= 1;
+  prev.onclick = () => { state.page--; state.selected.clear(); loadQuotes(); };
+  const next = document.createElement("button"); next.className = "tiny"; next.textContent = "下一页 ›"; next.disabled = state.page >= pages;
+  next.onclick = () => { state.page++; state.selected.clear(); loadQuotes(); };
+  const info = document.createElement("span");
+  info.textContent = "第 " + state.page + " / " + pages + " 页 · 共 " + state.total + " 条";
+  $("pager").append(prev, info, next);
+}
+
+let qTimer = null;
+$("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.page = 1; loadQuotes(); }, 280); });
+$("filter").onchange = () => { state.page = 1; state.selected.clear(); loadQuotes(); };
+$("refreshQuotes").onclick = () => { refreshOverview(); loadQuotes(); };
+
+/* 弹窗：编辑 / 新增 */
+function openEditor(opts) {
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = '<div class="box"><h3>' + (opts.id ? "编辑 #" + opts.id : "新增文案") + '</h3>' +
+    '<label>正文（一行一条，不要换行）</label>' +
+    '<textarea id="mText"></textarea>' +
+    '<label>标签（空格或逗号分隔，可留空）</label>' +
+    '<input id="mTags" style="width:100%">' +
+    '<div class="row2"><button id="mCancel">取消</button><button class="primary" id="mSave">' + (opts.id ? "保存并提交" : "提交到 GitHub") + '</button></div>' +
+    '<p style="font-size:12px;color:var(--muted);margin:10px 0 0">提交后会直接 commit 到仓库，约 1~2 分钟后网站上生效。</p></div>';
+  document.body.appendChild(modal);
+  const ta = modal.querySelector("#mText"), tg = modal.querySelector("#mTags");
+  ta.value = opts.text || ""; tg.value = (opts.tags || []).join(" ");
+  ta.focus();
+  const close = () => modal.remove();
+  modal.querySelector("#mCancel").onclick = close;
+  modal.onclick = (e) => { if (e.target === modal) close(); };
+  modal.querySelector("#mSave").onclick = async () => {
+    const text = ta.value.trim();
+    const tags = tg.value.split(/[\s,，]+/).filter(Boolean);
+    if (text.length < 2) return toast("正文太短了");
+    const btn = modal.querySelector("#mSave");
+    btn.disabled = true;
+    const res = opts.id ? await post("/api/admin/quotes-edit", { id: opts.id, text, tags }) : await post("/api/admin/quotes-add", { text, tags });
+    btn.disabled = false;
+    if (!res.data.ok) return toast(res.data.error || "提交失败");
+    close();
+    toast("已提交到 GitHub，正在构建…");
+    refreshOverview(); loadQuotes();
+  };
+}
+
+const editQuote = (r) => openEditor(r);
+$("addBtn").onclick = () => openEditor({});
+
+async function hideQuote(r) {
+  if (!confirm("确认下线 #" + r.id + " ？下线后可随时恢复，也不会影响其它文案的编号。")) return;
+  const { data } = await post("/api/admin/quotes-hide", { id: r.id });
   if (!data.ok) return toast(data.error || "操作失败");
-  toast("已清空 " + data.deleted + " 条记录");
-  load();
+  toast("已下线 #" + r.id + "，构建中…");
+  refreshOverview(); loadQuotes();
+}
+async function restoreQuote(r) {
+  const { data } = await post("/api/admin/quotes-restore", { id: r.id });
+  if (!data.ok) return toast(data.error || "操作失败");
+  toast("已恢复 #" + r.id + "，构建中…");
+  refreshOverview(); loadQuotes();
+}
+async function batch(action) {
+  const ids = [...state.selected];
+  if (!ids.length) return;
+  if (!confirm((action === "hide" ? "批量下线 " : "批量恢复 ") + ids.length + " 条文案？")) return;
+  const { data } = await post("/api/admin/quotes-batch", { action, ids });
+  if (!data.ok) return toast(data.error || "操作失败");
+  state.selected.clear();
+  toast("已提交 " + ids.length + " 条，构建中…");
+  refreshOverview(); loadQuotes();
+}
+$("batchHide").onclick = () => batch("hide");
+$("batchRestore").onclick = () => batch("restore");
+
+/* ---------------- 草稿箱 ---------------- */
+async function loadDrafts() {
+  const { status, data } = await api("/api/admin/drafts");
+  if (status === 401) return showLogin("会话已过期，请重新登录。");
+  if (!data.ok) { $("draftRows").innerHTML = '<div class="empty">' + esc(data.error || "加载失败") + "</div>"; return; }
+  state.drafts = data.rows;
+  $("draftCount").textContent = data.count;
+  $("draftEmpty").style.display = data.count ? "none" : "block";
+  const box = $("draftRows");
+  box.innerHTML = "";
+  for (const d of data.rows) {
+    const el = document.createElement("div");
+    el.className = "row";
+    el.innerHTML = '<div class="cb" style="width:15px"></div><div class="id">' + esc(d.id) + '</div>' +
+      '<div class="tx">' + esc(d.text) + (d.tags && d.tags.length ? ' <span class="badge">' + d.tags.map((t) => "#" + esc(t)).join(" ") + "</span>" : "") + ' <span class="badge draft">草稿</span></div>' +
+      '<div class="ops"><button class="tiny primary">发布</button><button class="tiny">编辑</button><button class="tiny danger">删除</button></div>';
+    el.querySelector(".primary").onclick = () => publishDraft(d.id);
+    el.querySelector("button:not(.primary):not(.danger)").onclick = () => openDraftEditor(d);
+    el.querySelector(".danger").onclick = async () => {
+      if (!confirm("删除这条草稿？")) return;
+      const { data: r } = await post("/api/admin/drafts-delete", { id: d.id });
+      if (!r.ok) return toast(r.error || "删除失败");
+      toast("草稿已删除"); loadDrafts(); refreshOverview();
+    };
+    box.appendChild(el);
+  }
+}
+
+function openDraftEditor(d) {
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = '<div class="box"><h3>' + (d ? "编辑草稿" : "新建草稿") + '</h3>' +
+    '<label>正文</label><textarea id="mText"></textarea>' +
+    '<label>标签（空格或逗号分隔）</label><input id="mTags" style="width:100%">' +
+    '<div class="row2"><button id="mCancel">取消</button><button class="primary" id="mSave">保存草稿</button></div>' +
+    '<p style="font-size:12px;color:var(--muted);margin:10px 0 0">草稿只存在 KV，不会出现在网站上；发布后才写进 GitHub。</p></div>';
+  document.body.appendChild(modal);
+  const ta = modal.querySelector("#mText"), tg = modal.querySelector("#mTags");
+  if (d) { ta.value = d.text; tg.value = (d.tags || []).join(" "); }
+  ta.focus();
+  const close = () => modal.remove();
+  modal.querySelector("#mCancel").onclick = close;
+  modal.onclick = (e) => { if (e.target === modal) close(); };
+  modal.querySelector("#mSave").onclick = async () => {
+    const text = ta.value.trim();
+    if (text.length < 2) return toast("正文太短了");
+    const { data } = await post("/api/admin/drafts-save", { id: d ? d.id : undefined, text, tags: tg.value.split(/[\s,，]+/).filter(Boolean) });
+    if (!data.ok) return toast(data.error || "保存失败");
+    close(); toast("草稿已保存"); loadDrafts(); refreshOverview();
+  };
+}
+$("addDraft").onclick = () => openDraftEditor(null);
+$("refreshDrafts").onclick = () => { loadDrafts(); refreshOverview(); };
+$("publishAll").onclick = async () => {
+  if (!state.drafts.length) return toast("草稿箱是空的");
+  if (!confirm("把草稿箱里的 " + state.drafts.length + " 条全部发布到 GitHub？")) return;
+  const { data } = await post("/api/admin/drafts-publish", { all: true });
+  if (!data.ok) return toast(data.error || "发布失败");
+  toast("已发布，构建中…"); loadDrafts(); refreshOverview();
 };
+async function publishDraft(id) {
+  const { data } = await post("/api/admin/drafts-publish", { id });
+  if (!data.ok) return toast(data.error || "发布失败");
+  toast("已发布，构建中…"); loadDrafts(); refreshOverview();
+}
+
+/* ---------------- 点赞管理 ---------------- */
+async function loadLikes() {
+  const { status, data } = await api("/api/admin/likes");
+  if (status === 401) return showLogin("会话已过期，请重新登录。");
+  if (!data.ok) { $("likeRows").innerHTML = '<div class="empty">' + esc(data.error || "加载失败") + "</div>"; return; }
+  state.likes = data.rows;
+  $("likeStats").innerHTML = "累计点赞 <b>" + data.total + "</b> · 被赞文案 <b>" + data.count + "</b> 条";
+  renderLikes();
+}
+function renderLikes() {
+  const q = $("lq").value.trim().toLowerCase();
+  const list = state.likes.filter((r) => !q || (q.startsWith("#") ? String(r.id) === q.slice(1) : r.text.toLowerCase().includes(q)));
+  const box = $("likeRows");
+  box.innerHTML = "";
+  if (!list.length) { box.innerHTML = '<div class="empty">' + (state.likes.length ? "没有匹配的文案" : "还没有人点过赞 🍗") + "</div>"; return; }
+  for (const r of list) {
+    const el = document.createElement("div");
+    el.className = "row";
+    el.innerHTML = '<div class="cb" style="width:15px"></div><div class="id">#' + r.id + '</div>' +
+      '<div class="tx">' + esc(r.text) + "</div>" +
+      '<div class="ops"><input type="number" min="0" value="' + r.likes + '" style="width:78px;padding:6px 8px"><button class="tiny primary">保存</button><button class="tiny danger">清零</button></div>';
+    const input = el.querySelector("input");
+    el.querySelector(".primary").onclick = () => saveLikes(r.id, Number(input.value));
+    el.querySelector(".danger").onclick = () => { input.value = 0; saveLikes(r.id, 0); };
+    box.appendChild(el);
+  }
+}
+async function saveLikes(id, likes) {
+  const { data } = await post("/api/admin/likes-set", { id, likes });
+  if (!data.ok) return toast(data.error || "保存失败");
+  toast("#" + id + " 已设为 " + data.likes + " 赞");
+  loadLikes();
+}
+$("lq").addEventListener("input", renderLikes);
+$("refreshLikes").onclick = loadLikes;
+$("resetAll").onclick = async () => {
+  if (!confirm("把所有文案的点赞数清零？不可撤销。")) return;
+  const { data } = await post("/api/admin/likes-reset", { confirm: true });
+  if (!data.ok) return toast(data.error || "操作失败");
+  toast("已清空 " + data.deleted + " 条"); loadLikes();
+};
+
+/* ---------------- 标签切换 ---------------- */
+document.querySelectorAll(".tab").forEach((t) => {
+  t.onclick = () => {
+    document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x === t));
+    for (const k of ["quotes", "drafts", "likes"]) $("tab-" + k).style.display = k === t.dataset.tab ? "block" : "none";
+    if (t.dataset.tab === "drafts") loadDrafts();
+    if (t.dataset.tab === "likes") loadLikes();
+  };
+});
 
 boot();
 </script>

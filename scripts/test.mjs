@@ -1,7 +1,7 @@
 // 零依赖自测：解析规则、随机/每日/搜索/洗牌、数据完整性
 import { readFileSync } from "node:fs";
 import {
-  parseQuotes, pickRandom, pickBySeed, pickMany, shuffle,
+  parseQuotes, parseAll, formatLine, pickRandom, pickBySeed, pickMany, shuffle,
   filterByTag, searchQuotes, tagIndex, beijingDate, isThursday,
   daysUntilThursday, hash32, truncate,
 } from "../src/core.js";
@@ -9,7 +9,7 @@ import {
 let pass = 0, fail = 0;
 const ok = (cond, name) => { if (cond) { pass++; console.log("  ✓ " + name); } else { fail++; console.log("  ✗ " + name); } };
 
-console.log("1) quotes.txt 解析规则");
+console.log("1) quotes.txt 解析规则 / id 槽位稳定");
 const sample = parseQuotes(
   "\uFEFF# 注释行\n\n第一条文案\n  第二条文案  \n第一条文案\n求人 V 我 50 #经典 #求人\n!这条被下线了\n!被下线但带标签 #废弃\n"
 );
@@ -18,7 +18,19 @@ ok(sample[0].text === "第一条文案", "纯文本行");
 ok(sample[1].text === "第二条文案", "首尾空白被裁剪");
 ok(sample[2].text === "求人 V 我 50", "行尾标签被剥离");
 ok(sample[2].tags.join(",") === "经典,求人", "多标签解析正确");
-ok(sample.every((q, i) => q.id === i + 1), "id 连续从 1 开始（下线行不占号）");
+ok(sample.every((q, i) => q.id === i + 1), "上线文案的 id 从 1 连续递增");
+
+const all = parseAll("A文案\n!B下线\nC文案");
+ok(all.length === 3 && all[2].id === 3, "下线行也占 id 槽位（B=2, C=3）");
+ok(all[1].hidden === true && all[1].line === 1, "能定位下线行及其行号（后台按行号回写文件）");
+ok(parseQuotes("A文案\n!B下线\nC文案").map((q) => q.id).join(",") === "1,3", "前台只返回上线文案且 id 不位移");
+ok(parseAll("A文案\n!B下线\nC文案")[2].id === 3, "隐藏/恢复不会改变其它文案编号");
+
+console.log("1b) 行序列化");
+ok(formatLine("今天 V我50", ["原创", "经典"]) === "今天 V我50 #原创 #经典", "正文 + 标签");
+ok(formatLine("带 井号 #不是标签", []) === "带 井号 ＃不是标签", "正文里的 # 会被转成全角，避免被当成标签");
+ok(formatLine("下线文案", [], true) === "!下线文案", "下线行带 ! 前缀");
+ok(formatLine("多  空格\n换行", ["a b"]) === "多 空格 换行 #ab", "换行被压平、标签去空格");
 
 console.log("2) 选取与筛选");
 const pool = [{ id: 1, text: "a", tags: ["x"] }, { id: 2, text: "b", tags: ["y"] }, { id: 3, text: "c", tags: ["x"] }];

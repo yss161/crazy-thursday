@@ -5,20 +5,20 @@ function normalize(line) {
 }
 
 /**
- * 解析 quotes.txt
+ * 解析 quotes.txt（底层版，带行号 / 下线状态，供后台精确回写文件用）
  * 规则：
- *   - 一行一条；空行忽略
- *   - "#" 开头 = 注释
- *   - "!" 开头 = 临时下线（保留在文件里但不会出现在网站/API）
- *   - 行尾 {空格}#标签 视为标签（可多个）
- *   - 重复文案自动去重
- * @returns {{id:number,text:string,tags:string[],hidden?:boolean}[]} 仅返回未下线的文案
+ *   - 一行一条；空行、# 注释忽略
+ *   - "!" 开头 = 已下线（可恢复），仍然占用 id 槽位，因此下线/恢复不会影响其它文案的编号
+ *   - 行尾 {空格}#标签 视为标签
+ *   - 完全重复的正文只保留第一次出现的那一条
+ * @returns {{id:number,text:string,tags:string[],hidden:boolean,line:number}[]}
  */
-export function parseQuotes(raw) {
-  const all = [];
+export function parseAll(raw) {
+  const out = [];
   const seen = new Set();
-  for (const rawLine of String(raw).split("\n")) {
-    let line = normalize(rawLine);
+  const lines = String(raw).split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    let line = normalize(lines[i]);
     if (!line || line.startsWith("#")) continue;
     let hidden = false;
     if (line.startsWith("!")) {
@@ -38,9 +38,31 @@ export function parseQuotes(raw) {
     for (const t of collected) if (!tags.includes(t)) tags.push(t);
     if (seen.has(text)) continue;
     seen.add(text);
-    all.push({ text, tags, hidden });
+    out.push({ id: out.length + 1, text, tags, hidden, line: i });
   }
-  return all.filter((q) => !q.hidden).map((q, i) => ({ id: i + 1, text: q.text, tags: q.tags }));
+  return out;
+}
+
+/** 只返回上架的文案（前台 / API 用） */
+export function parseQuotes(raw) {
+  return parseAll(raw)
+    .filter((q) => !q.hidden)
+    .map((q) => ({ id: q.id, text: q.text, tags: q.tags }));
+}
+
+/** 把一条文案序列化成 quotes.txt 里的一行（保持 #标签 语法） */
+export function formatLine(text, tags = [], hidden = false) {
+  const clean = String(text)
+    .replace(/\r/g, "")
+    .replace(/\s*\n+\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\s+#/g, " ＃")
+    .trim();
+  const tagStr = (tags || [])
+    .map((t) => String(t).replace(/[\s#]/g, "").slice(0, 20))
+    .filter(Boolean)
+    .join(" #");
+  return (hidden ? "!" : "") + clean + (tagStr ? " #" + tagStr : "");
 }
 
 /** 32 位字符串哈希（FNV-1a） */
