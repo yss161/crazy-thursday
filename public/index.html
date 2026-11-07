@@ -120,6 +120,7 @@
 <div class="tabs">
   <button class="tab active" data-view="draw">🎲 抽一条</button>
   <button class="tab" data-view="lib">📚 文案库</button>
+  <button class="tab hidden" data-view="top" id="tab-top">🔥 热门</button>
 </div>
 
 <main>
@@ -155,6 +156,18 @@
       <div class="chips" id="chips"></div>
       <div class="list" id="list"></div>
       <div class="lib-foot" id="libfoot">—</div>
+    </div>
+  </section>
+
+  <!-- 热门（绑定 KV 后出现） -->
+  <section class="view hidden" id="view-top">
+    <div class="card">
+      <div class="lib-head">
+        <div style="flex:1;font-weight:600;">🔥 被「笑到了」最多的文案</div>
+        <button class="ghost" id="toprefresh">🔄 刷新</button>
+      </div>
+      <div class="list" id="toplist"></div>
+      <div class="lib-foot" id="topfoot">—</div>
     </div>
   </section>
 </main>
@@ -403,9 +416,43 @@ async function showPoster() {
 /* ---------------- 交互 ---------------- */
 function switchView(name) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === name));
-  $("view-draw").classList.toggle("hidden", name !== "draw");
-  $("view-lib").classList.toggle("hidden", name !== "lib");
+  for (const v of ["draw", "lib", "top"]) {
+    const el = $("view-" + v);
+    if (el) el.classList.toggle("hidden", name !== v);
+  }
   if (name === "lib") loadLib();
+  if (name === "top") loadTop();
+}
+
+/** 热门榜（需要 KV） */
+async function loadTop() {
+  const list = $("toplist");
+  list.innerHTML = '<div class="item"><div class="tx">统计中…</div></div>';
+  try {
+    const d = await api("/api/stats", { _: Date.now() });
+    if (!d.kv) {
+      list.innerHTML = '<div class="item"><div class="tx">还没有数据：绑定 KV 后这里会显示排行榜</div></div>';
+      $("topfoot").textContent = "—";
+      return;
+    }
+    if (!d.top || !d.top.length) {
+      list.innerHTML = '<div class="item"><div class="tx">还没有人点过「笑到了」，去抽一条做第一个 🍗</div></div>';
+      $("topfoot").textContent = "累计 0 次";
+      return;
+    }
+    list.innerHTML = "";
+    d.top.forEach((q, i) => {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = '<div class="no">' + (i + 1) + '</div><div class="tx"></div><div class="no" style="min-width:44px;text-align:right">🍗 ' + q.likes + '</div>';
+      row.querySelector(".tx").textContent = q.text;
+      row.onclick = () => { switchView("draw"); draw({ id: q.id }); };
+      list.appendChild(row);
+    });
+    $("topfoot").textContent = "累计 " + d.total + " 次「笑到了」";
+  } catch {
+    list.innerHTML = '<div class="item"><div class="tx">加载失败，稍后再试</div></div>';
+  }
 }
 
 document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => switchView(t.dataset.view)));
@@ -454,6 +501,7 @@ $("like").onclick = async () => {
     $("like").disabled = false;
   }
 };
+$("toprefresh").onclick = loadTop;
 $("daily").onchange = () => draw();
 let qTimer = null;
 $("q").addEventListener("input", (e) => {
@@ -496,6 +544,10 @@ async function init() {
     if (c.isThursday) { $("title").textContent = "🔥 疯狂星期四 · 就在今天"; confetti(34); }
   } catch {}
   $("like").disabled = false; // 点赞无需任何配置即可使用
+  try {
+    const s = await api("/api/stats", { _: Date.now() });
+    if (s.kv) $("tab-top").classList.remove("hidden");
+  } catch {}
   const id = new URLSearchParams(location.search).get("id");
   if (id) draw({ id }); else draw({ endpoint: "random" });
   if (navigator.serviceWorker && location.protocol === "https:") {

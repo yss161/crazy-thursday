@@ -17,8 +17,8 @@
   // 每周四 09:00 北京时间（= 01:00 UTC）触发，若配置了 WEBHOOK_URL 就推一条文案
   "triggers": { "crons": ["0 1 * * 4"] },
 
-  // 可选：开启「点赞/热门排行」需要 KV。在控制台创建 KV 命名空间后取消注释并填入 id。
-  // "kv_namespaces": [{ "binding": "QUOTES_KV", "id": "<你的 KV namespace id>" }],
+  // 「笑到了」点赞与热门排行：KV 全局永久计数（未绑定时自动退化为 Cache API）
+  "kv_namespaces": [{ "binding": "QUOTES_KV", "id": "25e74eabfc65473fad1aee659e849dcf9" }],
 
   "observability": { "enabled": true }
 }

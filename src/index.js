@@ -5,7 +5,9 @@ import {
 } from "./core.js";
 
 const QUOTES = parseQuotes(RAW_QUOTES);
-const BUILT_AT = new Date().toISOString();
+// 注意：Workers 在脚本启动阶段 Time 被冻结为 0，因此这里懒计算（≈ 首次请求 / 部署时间）
+let _builtAt = "";
+const builtAt = () => _builtAt || (_builtAt = new Date().toISOString());
 const VERSION = "1.2.0";
 
 /* ---------------------------------- 工具 ---------------------------------- */
@@ -193,7 +195,7 @@ const ROUTES = {
   /** 总数 */
   "/api/count": () =>
     json(
-      { ok: true, count: QUOTES.length, builtAt: BUILT_AT, version: VERSION, date: beijingDate(), isThursday: isThursday(beijingDate()) },
+      { ok: true, count: QUOTES.length, builtAt: builtAt(), version: VERSION, date: beijingDate(), isThursday: isThursday(beijingDate()) },
       { headers: { "cache-control": "public, max-age=60" } }
     ),
 
@@ -201,7 +203,7 @@ const ROUTES = {
   "/api/tags": () => json({ ok: true, tags: tagIndex(QUOTES) }, { headers: { "cache-control": "public, max-age=300" } }),
 
   /** 健康检查 */
-  "/api/health": () => json({ ok: true, quotes: QUOTES.length, builtAt: BUILT_AT, version: VERSION }),
+  "/api/health": () => json({ ok: true, quotes: QUOTES.length, builtAt: builtAt(), version: VERSION }),
 
   /** OpenAPI 描述（给 Postman / 代码生成用） */
   "/api/openapi.json": (url) => {
@@ -268,7 +270,7 @@ const ROUTES = {
     const rows = await Promise.all(list.keys.map(async (k) => ({ id: Number(k.name.slice(6)), likes: Number(await kv.get(k.name)) || 0 })));
     rows.sort((a, b) => b.likes - a.likes);
     const top = rows.slice(0, 20).map((r) => ({ ...brief(QUOTES.find((q) => q.id === r.id) || { id: r.id, text: "", tags: [] }), likes: r.likes }));
-    return json({ ok: true, kv: true, mode: "kv", total: rows.reduce((s, r) => s + r.likes, 0), top }, { headers: { "cache-control": "public, max-age=60" } });
+    return json({ ok: true, kv: true, mode: "kv", total: rows.reduce((s, r) => s + r.likes, 0), top }, { headers: { "cache-control": "no-store" } });
   },
 };
 
