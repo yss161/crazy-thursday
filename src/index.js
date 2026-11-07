@@ -104,6 +104,83 @@ async function bumpLikes(env, id) {
   return { likes: next, mode: "cache" };
 }
 
+
+/* ------------------------------ 管理后台鉴权 ------------------------------ */
+// 密码来自环境变量 ADMIN_PASSWORD（Cloudflare Secret）。
+// 登录后下发 HMAC 签名的一次性会话 cookie，无需数据库。
+
+const SESSION_TTL = 60 * 60 * 12; // 12 小时
+
+function timingSafeEqual(a, b) {
+  const x = String(a), y = String(b);
+  if (x.length !== y.length) return false;
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x.charCodeAt(i) ^ y.charCodeAt(i);
+  return diff === 0;
+}
+
+async function hmacHex(secret, msg) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function adminPassword(env) {
+  return (env && env.ADMIN_PASSWORD) || "";
+}
+
+function readCookie(request, name) {
+  const raw = request.headers.get("cookie") || "";
+  for (const part of raw.split(";")) {
+    const i = part.indexOf("=");
+    if (i < 0) continue;
+    if (part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return "";
+}
+
+async function issueSession(env) {
+  const exp = String(Math.floor(Date.now() / 1000) + SESSION_TTL);
+  const sig = await hmacHex(adminPassword(env), "admin:" + exp);
+  return { token: exp + "." + sig, maxAge: SESSION_TTL };
+}
+
+async function isAuthed(request, env) {
+  const pw = adminPassword(env);
+  if (!pw) return false;
+  const auth = request.headers.get("authorization") || "";
+  const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  const token = bearer || readCookie(request, "admin_session");
+  if (!token || !token.includes(".")) return false;
+  const [exp, sig] = token.split(".");
+  if (!/^\d+$/.test(exp) || Number(exp) * 1000 < Date.now()) return false;
+  const expect = await hmacHex(pw, "admin:" + exp);
+  return timingSafeEqual(sig, expect);
+}
+
+function requireAdmin(request, env) {
+  const pw = adminPassword(env);
+  if (!pw) return fail("后台未启用：请在 Cloudflare 控制台给 Worker 添加环境变量 ADMIN_PASSWORD", 503, { enabled: false });
+  return null;
+}
+
+/** 读取全部点赞记录（KV），附带文案正文 */
+async function listAllLikes(env) {
+  const kv = env && env.QUOTES_KV;
+  if (!kv) return null;
+  const listing = await kv.list({ prefix: "likes:", limit: 1000 });
+  const rows = await Promise.all(
+    listing.keys.map(async (k) => {
+      const id = Number(k.name.slice(6));
+      const likes = Number(await kv.get(k.name)) || 0;
+      const q = QUOTES.find((x) => x.id === id);
+      return { id, likes, text: q ? q.text : "(这条文案已不存在)", tags: q ? q.tags : [] };
+    })
+  );
+  rows.sort((a, b) => b.likes - a.likes || a.id - b.id);
+  return { rows, total: rows.reduce((s, r) => s + r.likes, 0) };
+}
+
 /* --------------------------------- 路由 --------------------------------- */
 
 const ROUTES = {
@@ -272,6 +349,97 @@ const ROUTES = {
     const top = rows.slice(0, 20).map((r) => ({ ...brief(QUOTES.find((q) => q.id === r.id) || { id: r.id, text: "", tags: [] }), likes: r.likes }));
     return json({ ok: true, kv: true, mode: "kv", total: rows.reduce((s, r) => s + r.likes, 0), top }, { headers: { "cache-control": "no-store" } });
   },
+
+  /* ---------------------------- 管理后台接口 ---------------------------- */
+  "/api/admin/status": async (url, request, env) =>
+    json({ ok: true, enabled: !!adminPassword(env), authed: await isAuthed(request, env) }, { headers: { "cache-control": "no-store" } }),
+
+  "/api/admin/login": async (url, request, env) => {
+    const blocked = requireAdmin(request, env);
+    if (blocked) return blocked;
+    const ip = request.headers.get("cf-connecting-ip") || "unknown";
+    if (rateLimited("admin-login:" + ip, 10, 60_000)) return fail("尝试太频繁，请一分钟后再试", 429);
+    let body = {};
+    try { body = await request.json(); } catch {}
+    if (!timingSafeEqual(String(body.password || ""), adminPassword(env))) {
+      return fail("密码不正确", 401);
+    }
+    const { token, maxAge } = await issueSession(env);
+    const secure = url.protocol === "https:" ? "; Secure" : "";
+    return json({ ok: true }, {
+      headers: {
+        "set-cookie": "admin_session=" + encodeURIComponent(token) + "; HttpOnly; Path=/; SameSite=Lax; Max-Age=" + maxAge + secure,
+        "cache-control": "no-store",
+      },
+    });
+  },
+
+  "/api/admin/logout": async (url, request, env) =>
+    json({ ok: true }, {
+      headers: {
+        "set-cookie": "admin_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0",
+        "cache-control": "no-store",
+      },
+    }),
+
+  /** 点赞列表 */
+  "/api/admin/likes": async (url, request, env) => {
+    const blocked = requireAdmin(request, env);
+    if (blocked) return blocked;
+    if (!(await isAuthed(request, env))) return fail("未登录或会话已过期", 401);
+    const all = await listAllLikes(env);
+    if (!all) return fail("未绑定 KV，无法管理点赞", 503);
+    return json({ ok: true, total: all.total, count: all.rows.length, rows: all.rows }, { headers: { "cache-control": "no-store" } });
+  },
+
+  /** 修改某条的点赞数（body: {id, likes}），likes=0 等价于清零 */
+  "/api/admin/likes-set": async (url, request, env) => {
+    const blocked = requireAdmin(request, env);
+    if (blocked) return blocked;
+    if (!(await isAuthed(request, env))) return fail("未登录或会话已过期", 401);
+    const kv = env && env.QUOTES_KV;
+    if (!kv) return fail("未绑定 KV，无法管理点赞", 503);
+    let body = {};
+    try { body = await request.json(); } catch {}
+    const id = Number(body.id);
+    const likes = Number(body.likes);
+    if (!Number.isInteger(id) || id < 1 || !QUOTES.some((q) => q.id === id)) return fail("文案 id 不存在", 400);
+    if (!Number.isFinite(likes) || likes < 0 || likes > 1e9) return fail("点赞数必须是 0 ~ 10 亿之间的整数", 400);
+    const key = "likes:" + id;
+    if (likes === 0) await kv.delete(key);
+    else await kv.put(key, String(Math.floor(likes)));
+    return json({ ok: true, id, likes: Math.floor(likes) }, { headers: { "cache-control": "no-store" } });
+  },
+
+  /** 清零某一条 */
+  "/api/admin/likes-delete": async (url, request, env) => {
+    const blocked = requireAdmin(request, env);
+    if (blocked) return blocked;
+    if (!(await isAuthed(request, env))) return fail("未登录或会话已过期", 401);
+    const kv = env && env.QUOTES_KV;
+    if (!kv) return fail("未绑定 KV，无法管理点赞", 503);
+    let body = {};
+    try { body = await request.json(); } catch {}
+    const id = Number(body.id);
+    if (!Number.isInteger(id) || id < 1) return fail("文案 id 无效", 400);
+    await kv.delete("likes:" + id);
+    return json({ ok: true, id, likes: 0 }, { headers: { "cache-control": "no-store" } });
+  },
+
+  /** 全部清零（body 必须带 confirm: true） */
+  "/api/admin/likes-reset": async (url, request, env) => {
+    const blocked = requireAdmin(request, env);
+    if (blocked) return blocked;
+    if (!(await isAuthed(request, env))) return fail("未登录或会话已过期", 401);
+    const kv = env && env.QUOTES_KV;
+    if (!kv) return fail("未绑定 KV，无法管理点赞", 503);
+    let body = {};
+    try { body = await request.json(); } catch {}
+    if (body.confirm !== true) return fail("危险操作：请在请求体里带 confirm: true", 400);
+    const listing = await kv.list({ prefix: "likes:", limit: 1000 });
+    await Promise.all(listing.keys.map((k) => kv.delete(k.name)));
+    return json({ ok: true, deleted: listing.keys.length }, { headers: { "cache-control": "no-store" } });
+  },
 };
 
 /* -------------------------------- 入口 -------------------------------- */
@@ -285,7 +453,8 @@ async function handleApi(request, url, env) {
   }
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   const isPost = request.method === "POST";
-  if (isPost && !pathname.startsWith("/api/react")) return fail("method not allowed", 405);
+  const postAllowed = pathname.startsWith("/api/react") || pathname.startsWith("/api/admin/");
+  if (isPost && !postAllowed) return fail("method not allowed", 405);
   if (!isPost && request.method !== "GET" && request.method !== "HEAD") return fail("method not allowed", 405);
   try {
     return await route(url, request, env);
@@ -301,6 +470,11 @@ export default {
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) return handleApi(request, url, env);
 
     if (env && env.ASSETS) {
+      // /admin 直接给后台页面（静态资源目录索引）
+      if (url.pathname === "/admin") {
+        const adminRes = await env.ASSETS.fetch(new Request(new URL("/admin/index.html", url), request));
+        if (adminRes.status !== 404) return adminRes;
+      }
       const res = await env.ASSETS.fetch(request);
       if (res.status !== 404) return res;
       // 未知路径回落到首页（保持 SPA 体验）

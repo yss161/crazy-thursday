@@ -20,5 +20,10 @@
   // 「笑到了」点赞与热门排行：KV 全局永久计数（未绑定时自动退化为 Cache API）
   "kv_namespaces": [{ "binding": "QUOTES_KV", "id": "25e74eabfc65473fad1ae659e849dcf9" }],
 
+  // 管理后台 /admin 的密码：不要写在这里，用 Secret 方式添加
+  //   控制台 → Worker → Settings → Variables and Secrets → 添加 Secret，名称 ADMIN_PASSWORD
+  //   或命令行：npx wrangler secret put ADMIN_PASSWORD
+  // 未设置时 /admin 会提示「后台未启用」，其余功能不受影响。
+
   "observability": { "enabled": true }
 }

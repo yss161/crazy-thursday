@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>后台 · 点赞管理 · 疯狂星期四</title>
+<link rel="icon" href="/icons/icon-192.png">
+<style>
+  :root {
+    --red: #c8102e; --red-dark: #9c0b23; --gold: #f5a623;
+    --cream: #fdf6ec; --ink: #241a16; --muted: #7b6c64;
+    --card: #fffdf9; --border: rgba(36,26,22,.1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --cream: #16110f; --ink: #f4ece4; --muted: #a79890; --card: #1f1917; --border: rgba(255,255,255,.09); }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--ink); background: var(--cream);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+    border-bottom: 1px solid var(--border); background: var(--card); position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 16px; margin: 0; flex: 1; font-weight: 650; }
+  header .badge { font-size: 12px; color: var(--muted); }
+  main { max-width: 980px; margin: 0 auto; padding: 20px; }
+  button {
+    font: inherit; font-size: 14px; border-radius: 10px; padding: 9px 14px; cursor: pointer;
+    border: 1px solid var(--border); background: transparent; color: var(--ink); transition: .16s;
+  }
+  button:hover { transform: translateY(-1px); }
+  button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  button.primary { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
+  button.primary:hover { background: var(--red-dark); }
+  button.danger { color: var(--red); border-color: rgba(200,16,46,.35); }
+  button.danger:hover { background: rgba(200,16,46,.08); }
+  button.tiny { padding: 6px 10px; font-size: 13px; border-radius: 8px; }
+  input {
+    font: inherit; font-size: 14px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--card); color: var(--ink); outline: none;
+  }
+  input:focus { border-color: rgba(200,16,46,.5); box-shadow: 0 0 0 3px rgba(200,16,46,.1); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 22px; }
+  .login { max-width: 380px; margin: 8vh auto; }
+  .login h2 { margin: 0 0 6px; font-size: 18px; }
+  .login p { color: var(--muted); font-size: 13px; margin: 0 0 18px; line-height: 1.7; }
+  .login input { width: 100%; margin-bottom: 12px; }
+  .login button { width: 100%; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-size: 22px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-bottom: 14px; }
+  .toolbar input[type=search] { flex: 1 1 220px; }
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    display: grid; grid-template-columns: 56px 1fr 92px auto; gap: 12px; align-items: center;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px;
+  }
+  .row .id { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .row .tx { font-size: 14px; line-height: 1.6; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .row .tx a { color: var(--ink); text-decoration: none; }
+  .row .tx a:hover { color: var(--red); }
+  .row input[type=number] { width: 84px; padding: 7px 9px; font-variant-numeric: tabular-nums; }
+  .row .ops { display: flex; gap: 7px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 26px; text-align: center; }
+  .note { color: var(--muted); font-size: 12.5px; margin-top: 16px; line-height: 1.8; }
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px); background: var(--ink);
+    color: var(--cream); padding: 10px 18px; border-radius: 999px; font-size: 13.5px; opacity: 0;
+    pointer-events: none; transition: .22s; z-index: 50; max-width: 88vw; text-align: center;
+  }
+  .toast.show { opacity: .96; transform: translate(-50%, 0); }
+  @media (max-width: 640px) {
+    .row { grid-template-columns: 44px 1fr; grid-template-areas: "id tx" "num ops"; row-gap: 8px; }
+    .row .id { grid-area: id; } .row .tx { grid-area: tx; }
+    .row input[type=number] { grid-area: num; width: 100%; } .row .ops { grid-area: ops; justify-content: flex-end; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <span>🍗</span>
+  <h1>疯狂星期四 · 后台</h1>
+  <span class="badge" id="who">—</span>
+  <button class="tiny" id="logout" style="display:none">退出</button>
+</header>
+
+<main>
+  <!-- 登录 -->
+  <section id="loginView" class="card login" style="display:none">
+    <h2>请输入管理密码</h2>
+    <p id="loginHint">密码来自 Worker 的环境变量 <code>ADMIN_PASSWORD</code>，输入后 12 小时内免登录。</p>
+    <input type="password" id="pw" placeholder="管理密码" autocomplete="current-password">
+    <button class="primary" id="loginBtn">登录</button>
+  </section>
+
+  <!-- 后台主体 -->
+  <section id="panel" style="display:none">
+    <div class="stats">
+      <div class="stat"><div class="k">累计点赞</div><div class="v" id="statTotal">—</div></div>
+      <div class="stat"><div class="k">被赞过的文案</div><div class="v" id="statCount">—</div></div>
+      <div class="stat"><div class="k">文案总数</div><div class="v" id="statQuotes">—</div></div>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="q" placeholder="搜索文案 / 输入 #id 精确查找">
+      <button id="refresh">🔄 刷新</button>
+      <button class="danger" id="resetAll">🗑 全部清零</button>
+    </div>
+    <div class="rows" id="rows"></div>
+    <div class="note">
+      改完数字点「保存」立即生效（写进 Workers KV）。清零后这条会从榜单消失。<br>
+      页面上的「🍗 笑到了」每点一次 +1，同一浏览器同一条只算一次。
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let rows = [];
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove("show"), 2000);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { credentials: "same-origin", headers: { "content-type": "application/json" }, ...opts });
+  let data = {};
+  try { data = await res.json(); } catch {}
+  return { status: res.status, data };
+}
+
+function showLogin(msg) {
+  $("loginView").style.display = "block";
+  $("panel").style.display = "none";
+  $("logout").style.display = "none";
+  $("who").textContent = "未登录";
+  if (msg) $("loginHint").innerHTML = msg;
+}
+
+async function boot() {
+  const { data } = await api("/api/admin/status");
+  if (!data.enabled) {
+    showLogin("⚠️ 后台未启用：请在 Cloudflare 控制台给 Worker 添加环境变量（Secret）<code>ADMIN_PASSWORD</code>，然后刷新本页。");
+    $("loginBtn").disabled = true;
+    return;
+  }
+  if (data.authed) load();
+  else showLogin();
+}
+
+async function load() {
+  const { status, data } = await api("/api/admin/likes");
+  if (status === 401) return showLogin("会话已过期，请重新登录。");
+  if (!data.ok) { toast(data.error || "加载失败"); return; }
+  rows = data.rows;
+  $("loginView").style.display = "none";
+  $("panel").style.display = "block";
+  $("logout").style.display = "inline-block";
+  $("who").textContent = "已登录";
+  try {
+    const c = await api("/api/count");
+    $("statQuotes").textContent = c.data.count;
+  } catch {}
+  render();
+}
+
+function render() {
+  const q = $("q").value.trim().toLowerCase();
+  const list = rows.filter((r) => {
+    if (!q) return true;
+    if (q.startsWith("#")) return String(r.id) === q.slice(1);
+    return r.text.toLowerCase().includes(q);
+  });
+  $("statTotal").textContent = rows.reduce((s, r) => s + r.likes, 0);
+  $("statCount").textContent = rows.length;
+  const box = $("rows");
+  box.innerHTML = "";
+  if (!list.length) {
+    box.innerHTML = '<div class="empty">' + (rows.length ? "没有匹配的文案" : "还没有人点过赞 🍗") + "</div>";
+    return;
+  }
+  for (const r of list) {
+    const el = document.createElement("div");
+    el.className = "row";
+    el.innerHTML = '<div class="id">#' + r.id + '</div>' +
+      '<div class="tx"><a href="/?id=' + r.id + '" target="_blank" rel="noopener">' + esc(r.text) + "</a></div>" +
+      '<input type="number" min="0" max="1000000000" value="' + r.likes + '">' +
+      '<div class="ops"><button class="tiny primary">保存</button><button class="tiny danger">清零</button></div>';
+    const input = el.querySelector("input");
+    el.querySelector(".primary").onclick = () => save(r.id, Number(input.value), el);
+    el.querySelector(".danger").onclick = () => { input.value = 0; save(r.id, 0, el); };
+    box.appendChild(el);
+  }
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+async function save(id, likes, el) {
+  if (!Number.isFinite(likes) || likes < 0) return toast("请输入 0 以上的整数");
+  const btns = el.querySelectorAll("button");
+  btns.forEach((b) => (b.disabled = true));
+  const { data } = await api("/api/admin/likes-set", { method: "POST", body: JSON.stringify({ id, likes }) });
+  btns.forEach((b) => (b.disabled = false));
+  if (!data.ok) return toast(data.error || "保存失败");
+  const row = rows.find((r) => r.id === id);
+  if (row) row.likes = data.likes;
+  if (data.likes === 0) rows = rows.filter((r) => r.id !== id);
+  toast("#" + id + " 已设为 " + data.likes + " 赞");
+  render();
+}
+
+$("loginBtn").onclick = async () => {
+  const password = $("pw").value;
+  if (!password) return toast("请输入密码");
+  $("loginBtn").disabled = true;
+  const { status, data } = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password }) });
+  $("loginBtn").disabled = false;
+  if (!data.ok) return toast(data.error || "登录失败");
+  $("pw").value = "";
+  toast("登录成功");
+  load();
+};
+$("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") $("loginBtn").click(); });
+$("logout").onclick = async () => { await api("/api/admin/logout", { method: "POST" }); showLogin("已退出登录。"); };
+$("refresh").onclick = () => load();
+$("q").addEventListener("input", render);
+$("resetAll").onclick = async () => {
+  if (!confirm("确定要把所有文案的点赞数全部清零吗？这个操作不可撤销。")) return;
+  const { data } = await api("/api/admin/likes-reset", { method: "POST", body: JSON.stringify({ confirm: true }) });
+  if (!data.ok) return toast(data.error || "操作失败");
+  toast("已清空 " + data.deleted + " 条记录");
+  load();
+};
+
+boot();
+</script>
+</body>
+</html>

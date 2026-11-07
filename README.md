@@ -21,6 +21,7 @@
 | 🖼 一键生成分享图 | Canvas 实时画 1080×1350 竖版卡片，保存发群（含编号与站点域名） |
 | 📚 文案库 | 全部文案列表、关键词搜索、标签筛选、滚动加载、点任意一条直接抽到该条 |
 | 🍗 笑到了 / 🔥 热门 | 给梗点赞（同一浏览器同一条只算一次），绑定 KV 后出现「热门」榜 |
+| 🔐 后台管理 | `/admin` 密码登录，查看 / 修改 / 清零点赞数（密码存于 `ADMIN_PASSWORD`） |
 | 🔗 直达链接 | `/?id=42` 打开第 42 条，方便分享 |
 | 📋 复制 / 系统分享 | 一键复制文案或链接，手机上走系统分享面板 |
 | 🔥 星期四彩蛋 | 周四当天标题变「就在今天」，撒炸鸡/薯条彩带动画；其他日子显示倒计时 |
@@ -44,6 +45,13 @@
 | `GET /api/likes?id=42` | 读取某条文案的「🍗 笑到了」数量 |
 | `POST /api/react?id=42` | 点「🍗 笑到了」+1（零配置可用；绑定 KV 后变成全局永久计数） |
 | `/api/stats` | 热门排行（绑定 KV 后可用） |
+| `GET /api/admin/status` | 后台是否启用、当前是否已登录 |
+| `POST /api/admin/login` | 用 `ADMIN_PASSWORD` 换一个 12 小时有效的会话 cookie |
+| `POST /api/admin/logout` | 退出登录 |
+| `GET /api/admin/likes` | 全部点赞记录（需登录） |
+| `POST /api/admin/likes-set` | 直接设定某条点赞数 `{id, likes}`（需登录） |
+| `POST /api/admin/likes-delete` | 清零某一条 `{id}`（需登录） |
+| `POST /api/admin/likes-reset` | 全部清零 `{confirm:true}`（需登录） |
 
 **自动化**
 
@@ -59,6 +67,7 @@ crazy-thursday/
 │   └── core.js             ← 纯逻辑：解析 quotes.txt、随机/每日/搜索/洗牌（可在 Node 里单测）
 ├── public/
 │   ├── index.html          ← 页面（内联 CSS/JS，零构建步骤）
+│   ├── admin/index.html    ← 后台管理页（/admin）
 │   ├── manifest.webmanifest / sw.js / icons/ / og.png   ← PWA 与分享图
 ├── scripts/test.mjs        ← 零依赖自测：node scripts/test.mjs
 ├── .github/workflows/deploy.yml ← 可选：用 GitHub Actions 部署（默认关闭）
@@ -109,6 +118,31 @@ npm test         # 29 项自测：解析规则 / 随机 / 每日 / 搜索 / 数�
    "kv_namespaces": [{ "binding": "QUOTES_KV", "id": "<你的 namespace id>" }],
    ```
 3. push 后自动切到 KV 模式，无需改代码。
+
+### 🔐 管理后台 `/admin`
+
+用来管理点赞：查看排行、把某条改成任意数字、清零单条或全部清零。
+
+**1. 设置密码（只需一次）**
+
+后台密码不写在代码里，用环境变量（Secret）：
+
+- 控制台：Worker `crazy-thursday` → **Settings → Variables and Secrets** → **Add** → Type 选 **Secret**，Name 填 `ADMIN_PASSWORD`，Value 填你想用的密码 → 保存并重新部署
+- 或命令行：`npx wrangler secret put ADMIN_PASSWORD`
+
+**2. 打开 `https://你的域名/admin`**，输入密码即可。登录状态 12 小时有效，Cookie 为 `HttpOnly`（JS 读不到）。
+
+**3. 能做什么**
+
+| 操作 | 说明 |
+| --- | --- |
+| 查看列表 | 只列出「有点赞」的文案，按赞数排序，显示累计点赞 / 条数 / 文案总数 |
+| 搜索 | 输入关键词按正文搜索；输入 `#42` 精确按编号找 |
+| 修改 | 改数字后点「保存」，立即写入 KV，前台马上生效 |
+| 清零 | 单条清零，或「全部清零」（会二次确认） |
+| 退出 | 清除会话 cookie |
+
+**安全说明**：密码错误返回 401 且登录接口每 IP 限 10 次/分钟；会话是 HMAC-SHA256 签名 + 12 小时过期，改密码即让所有旧会话失效；未设置 `ADMIN_PASSWORD` 时后台整体关闭（接口返回 503，前台功能不受影响）。
 
 ### 可选：每周四自动推送
 
