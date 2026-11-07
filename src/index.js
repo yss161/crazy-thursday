@@ -57,6 +57,51 @@ function rateLimited(key, limit, windowMs) {
   return b.n > limit;
 }
 
+
+/* ------------------------- 「笑到了」计数存储层 ------------------------- */
+// 优先用 KV（全局、永久）；没绑定时退化为 Cache API（无需任何配置，
+// 每个 Cloudflare 数据中心各自计数、24 小时后过期，对玩笑性质的点赞足够用）。
+
+const CACHE_TTL = 86400;
+function likesKey(id) {
+  return "https://likes.internal/crazy-thursday/" + id;
+}
+
+async function readLikes(env, id) {
+  const kv = env && env.QUOTES_KV;
+  if (kv) return { likes: Number(await kv.get("likes:" + id)) || 0, mode: "kv" };
+  if (typeof caches === "undefined") return { likes: 0, mode: "none" };
+  try {
+    const hit = await caches.default.match(new Request(likesKey(id)));
+    return { likes: hit ? Number(await hit.text()) || 0 : 0, mode: "cache" };
+  } catch {
+    return { likes: 0, mode: "none" };
+  }
+}
+
+async function bumpLikes(env, id) {
+  const kv = env && env.QUOTES_KV;
+  if (kv) {
+    const cur = Number(await kv.get("likes:" + id)) || 0;
+    await kv.put("likes:" + id, String(cur + 1));
+    return { likes: cur + 1, mode: "kv" };
+  }
+  if (typeof caches === "undefined") return { likes: 0, mode: "none" };
+  const { likes } = await readLikes(env, id);
+  const next = likes + 1;
+  try {
+    await caches.default.put(
+      new Request(likesKey(id)),
+      new Response(String(next), {
+        headers: { "content-type": "text/plain", "cache-control": "max-age=" + CACHE_TTL },
+      })
+    );
+  } catch {
+    return { likes, mode: "none" };
+  }
+  return { likes: next, mode: "cache" };
+}
+
 /* --------------------------------- 路由 --------------------------------- */
 
 const ROUTES = {
@@ -186,37 +231,44 @@ const ROUTES = {
           "/api/count": { get: { summary: "总数与构建信息", responses: { 200: { description: "成功" } } } },
           "/api/tags": { get: { summary: "标签统计", responses: { 200: { description: "成功" } } } },
           "/api/health": { get: { summary: "健康检查", responses: { 200: { description: "成功" } } } },
-          "/api/react": { post: { summary: "给某条文案点个「笑到了」（需要绑定 KV）", parameters: [{ name: "id", in: "query", required: true, schema: { type: "integer" } }], responses: { 200: { description: "成功" }, 503: { description: "未绑定 KV" } } } },
-          "/api/stats": { get: { summary: "热门文案排行（需要绑定 KV）", responses: { 200: { description: "成功" } } } },
+          "/api/likes": { get: { summary: "读取某条文案的「笑到了」数量", parameters: [{ name: "id", in: "query", required: true, schema: { type: "integer" } }], responses: { 200: { description: "成功" } } } },
+          "/api/react": { post: { summary: "给某条文案点个「笑到了」（无需配置；绑定 KV 后升级为全局永久计数）", parameters: [{ name: "id", in: "query", required: true, schema: { type: "integer" } }], responses: { 200: { description: "成功" }, 429: { description: "太频繁" } } } },
+          "/api/stats": { get: { summary: "热门文案排行（绑定 KV 后可用）", responses: { 200: { description: "成功" } } } },
         },
       },
       { headers: { "cache-control": "public, max-age=3600" } }
     );
   },
 
-  /** 点赞/反应：需要 KV 绑定 env.QUOTES_KV，未绑定则优雅降级 */
-  "/api/react": async (url, request, env) => {
-    const kv = env && env.QUOTES_KV;
-    if (!kv) return json({ ok: false, kv: false, error: "未绑定 KV：在 Cloudflare 控制台创建 KV 命名为 QUOTES_KV 后即可开启点赞统计" }, { status: 503 });
-    const ip = request.headers.get("cf-connecting-ip") || "unknown";
-    if (rateLimited("react:" + ip, 20, 60_000)) return fail("请求太频繁，歇会儿再来", 429);
-    const id = intParam(url, "id", 0, 1, QUOTES.length);
+  /** 读取某条文案的「笑到了」数量 */
+  "/api/likes": async (url, request, env) => {
+    const id = intParam(url, "id", 0, 0, 1e9);
     if (!QUOTES.some((q) => q.id === id)) return fail("quote not found", 404);
-    const key = "likes:" + id;
-    const cur = Number(await kv.get(key)) || 0;
-    await kv.put(key, String(cur + 1));
-    return json({ ok: true, id, likes: cur + 1 }, { headers: { "cache-control": "no-store" } });
+    const { likes, mode } = await readLikes(env, id);
+    return json({ ok: true, id, likes, mode }, { headers: { "cache-control": "no-store" } });
   },
 
-  /** 热门排行（KV） */
+  /** 点个「笑到了」：KV 优先，未绑定 KV 时用 Cache API 兜底，因此无需任何配置就能用 */
+  "/api/react": async (url, request, env) => {
+    const ip = request.headers.get("cf-connecting-ip") || "unknown";
+    if (rateLimited("react:" + ip, 30, 60_000)) return fail("请求太频繁，歇会儿再来", 429);
+    const id = intParam(url, "id", 0, 0, 1e9);
+    if (!QUOTES.some((q) => q.id === id)) return fail("quote not found", 404);
+    const { likes, mode } = await bumpLikes(env, id);
+    return json({ ok: true, id, likes, mode }, { headers: { "cache-control": "no-store" } });
+  },
+
+  /** 热门排行（仅在绑定 KV 时可用，否则返回提示） */
   "/api/stats": async (url, request, env) => {
     const kv = env && env.QUOTES_KV;
-    if (!kv) return json({ ok: false, kv: false, error: "未绑定 KV", quotes: QUOTES.length }, { status: 200 });
+    if (!kv) {
+      return json({ ok: true, kv: false, mode: typeof caches !== "undefined" ? "cache" : "none", quotes: QUOTES.length, note: "未绑定 KV：点赞使用 Cache API 兜底，只计数不排行" });
+    }
     const list = await kv.list({ prefix: "likes:", limit: 1000 });
     const rows = await Promise.all(list.keys.map(async (k) => ({ id: Number(k.name.slice(6)), likes: Number(await kv.get(k.name)) || 0 })));
     rows.sort((a, b) => b.likes - a.likes);
     const top = rows.slice(0, 20).map((r) => ({ ...brief(QUOTES.find((q) => q.id === r.id) || { id: r.id, text: "", tags: [] }), likes: r.likes }));
-    return json({ ok: true, kv: true, total: rows.reduce((s, r) => s + r.likes, 0), top }, { headers: { "cache-control": "public, max-age=60" } });
+    return json({ ok: true, kv: true, mode: "kv", total: rows.reduce((s, r) => s + r.likes, 0), top }, { headers: { "cache-control": "public, max-age=60" } });
   },
 };
 

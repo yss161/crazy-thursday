@@ -40,8 +40,9 @@
 | `/api/count` | 文案总数 + 构建时间 + 今天是不是星期四 |
 | `/api/health` | 健康检查 |
 | `/api/openapi.json` | OpenAPI 3.0 描述 |
-| `POST /api/react?id=42` | 给文案点「🍗 笑到了」（需绑定 KV，见下） |
-| `/api/stats` | 热门排行（需绑定 KV） |
+| `GET /api/likes?id=42` | 读取某条文案的「🍗 笑到了」数量 |
+| `POST /api/react?id=42` | 点「🍗 笑到了」+1（零配置可用；绑定 KV 后变成全局永久计数） |
+| `/api/stats` | 热门排行（绑定 KV 后可用） |
 
 **自动化**
 
@@ -95,16 +96,18 @@ npm test         # 29 项自测：解析规则 / 随机 / 每日 / 搜索 / 数�
 4. 保存 → 自动构建上线，得到 `https://crazy-thursday.<你的子域>.workers.dev`。
 5. 之后 **每次 push 到 main 都会自动重新部署** —— 改 `quotes.txt` 保存即生效，通常 30 秒左右。
 
-### 可选：开启点赞与热门排行（KV）
+### 关于「🍗 笑到了」点赞（可选升级到 KV）
 
-页面上的「🍗 笑到了」需要 KV：
+**不用任何配置就能点**：没绑定 KV 时，计数走 Cloudflare 内置的 Cache API（每个数据中心各自计数、24 小时后自然过期，对玩笑性质的点赞足够用）。
+
+想要**全局、永久的计数和热门排行榜**，再绑一个 KV：
 
 1. 控制台 → **Storage & Databases → KV** → Create namespace，命名随便（例如 `crazy-thursday-likes`）。
 2. 打开 `wrangler.jsonc`，取消注释并把 id 填进去：
    ```jsonc
    "kv_namespaces": [{ "binding": "QUOTES_KV", "id": "<你的 namespace id>" }],
    ```
-3. push 后按钮自动亮起。没有 KV 时接口会优雅降级（返回 503 + 提示），页面按钮保持禁用。
+3. push 后自动切到 KV 模式，无需改代码。
 
 ### 可选：每周四自动推送
 

@@ -201,6 +201,19 @@ function render(q) {
   $("counter").textContent = "#" + q.id + (q.date ? " · " + q.date : "") + (total !== "—" ? " / " + total : "");
   $("total").textContent = total;
   $("likes").textContent = q.likes || "";
+  refreshLikes(q.id);
+}
+
+/** 拉取某条文案当前的「笑到了」数量 */
+async function refreshLikes(id) {
+  try {
+    const r = await fetch("/api/likes?id=" + id);
+    const d = await r.json();
+    if (d.ok && state.current && state.current.id === id) {
+      $("likes").textContent = d.likes > 0 ? d.likes : "";
+      $("like").disabled = false;
+    }
+  } catch {}
 }
 
 async function draw(opts = {}) {
@@ -421,10 +434,25 @@ $("share").onclick = async () => {
 };
 $("like").onclick = async () => {
   if (!state.current) return;
-  const r = await fetch("/api/react?id=" + state.current.id, { method: "POST" });
-  const data = await r.json().catch(() => ({}));
-  if (data.ok) { $("likes").textContent = data.likes; toast("感谢捧场 🍗"); }
-  else toast(data.error || "暂时不可用");
+  const id = state.current.id;
+  const key = "ct-liked-" + id;
+  try { if (localStorage.getItem(key)) { toast("这条你已经笑过了 😄"); return; } } catch {}
+  $("like").disabled = true;
+  try {
+    const r = await fetch("/api/react?id=" + id, { method: "POST" });
+    const data = await r.json().catch(() => ({}));
+    if (data.ok) {
+      try { localStorage.setItem(key, "1"); } catch {}
+      $("likes").textContent = data.likes;
+      toast("感谢捧场 🍗");
+    } else {
+      toast(data.error || "暂时不可用，稍再试试");
+    }
+  } catch {
+    toast("网络开小差了，稍再试试");
+  } finally {
+    $("like").disabled = false;
+  }
 };
 $("daily").onchange = () => draw();
 let qTimer = null;
@@ -467,11 +495,7 @@ async function init() {
     $("badge").textContent = c.isThursday ? "🔥 今天就是星期四，冲！" : "⏳ 距离下个星期四还有 " + daysLeft() + " 天";
     if (c.isThursday) { $("title").textContent = "🔥 疯狂星期四 · 就在今天"; confetti(34); }
   } catch {}
-  try {
-    const s = await api("/api/stats");
-    state.hasKV = !!s.kv;
-    if (state.hasKV) $("like").disabled = false;
-  } catch {}
+  $("like").disabled = false; // 点赞无需任何配置即可使用
   const id = new URLSearchParams(location.search).get("id");
   if (id) draw({ id }); else draw({ endpoint: "random" });
   if (navigator.serviceWorker && location.protocol === "https:") {
